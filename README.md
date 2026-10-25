@@ -3,10 +3,10 @@ Travel planner project
 
 ## Documents
 
-- [Software Requirements Specification](SOFTWARE_REQUIREMENTS_SPECIFICATION.md)
-- [Test-Driven Development Plan](TEST_DRIVEN_DEVELOPMENT_PLAN.md)
-- [Behavior Scenarios](BEHAVIOR_DRIVEN_DEVELOPMENT_SCENARIOS.md)
-- [Implementation Guide](IMPLEMENTATION_GUIDE.md)
+- [Software Requirements Specification](docs/SOFTWARE_REQUIREMENTS_SPECIFICATION.md)
+- [Test-Driven Development Plan](docs/TEST_DRIVEN_DEVELOPMENT_PLAN.md)
+- [Behavior Scenarios](docs/BEHAVIOR_DRIVEN_DEVELOPMENT_SCENARIOS.md)
+- [Implementation Guide](docs/IMPLEMENTATION_GUIDE.md)
 
 ## Development
 
@@ -14,8 +14,8 @@ The agents target Python 3.11. Create a virtual environment and install the pinn
 
 ```sh
 python -m venv .venv
-.venv/Scripts/python -m pip install -r requirements-dev.txt   # Windows
-.venv/bin/python -m pip install -r requirements-dev.txt       # macOS and Linux
+.venv/Scripts/python -m pip install -r requirements/requirements-dev.txt   # Windows
+.venv/bin/python -m pip install -r requirements/requirements-dev.txt       # macOS and Linux
 ```
 
 Run the tests:
@@ -46,12 +46,20 @@ Settings come from environment variables only:
 | `OPENAI_API_KEY` | none | Required by agents that call OpenAI |
 | `LLM_TIMEOUT_SECONDS` | 120 | Longest wait for one model call |
 | `DOWNSTREAM_TIMEOUT_SECONDS` | 150 | Longest wait for a specialist; between `LLM_TIMEOUT_SECONDS` and 180 |
+| `RAG_ENABLED` | `true` | Add Wikivoyage guidance to the specialists' prompts |
+| `RAG_STORE` | `chroma` | Guidance index type: `chroma` (self-hosted) or `file` (cloud) |
+| `RAG_INDEX_PATH` | `data/rag/index/<store>` | Guidance index location |
+| `RAG_DESTINATIONS_FILE` | `data/rag/destinations.txt` | Destinations and their aliases, one per line: `New York City \| NYC` |
 | `RAG_TOP_K` | 2 | Guidance passages per prompt |
+| `RAG_TIMEOUT_SECONDS` | 5 | Longest wait for a guidance lookup; after it, the agent plans without guidance |
 | `HOST_API_KEY` | none | When set, the Host's `POST /run` requires a matching `X-API-Key` header |
 
-To change a dependency, edit `requirements.in` or `requirements-dev.in`, then recompile both lock files:
+The Chroma index needs the optional packages in `requirements/requirements-rag.txt` (included in `requirements/requirements-dev.txt`). Without them, or without an index, the specialists plan without guidance.
+
+To change a dependency, edit a `.in` file in `requirements/`, then recompile the lock files in this order:
 
 ```sh
-uv pip compile requirements.in --universal --python-version 3.11 -o requirements.txt
-uv pip compile requirements-dev.in --universal --python-version 3.11 -o requirements-dev.txt
+uv pip compile requirements/requirements.in --universal --python-version 3.11 -o requirements/requirements.txt
+uv pip compile requirements/requirements-rag.in --universal --python-version 3.11 -o requirements/requirements-rag.txt
+uv pip compile requirements/requirements-dev.in --universal --python-version 3.11 -o requirements/requirements-dev.txt
 ```

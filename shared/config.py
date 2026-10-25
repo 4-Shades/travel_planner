@@ -16,6 +16,7 @@ _NUMBERS = (
     ("LLM_TIMEOUT_SECONDS", "llm_timeout_seconds", float),
     ("DOWNSTREAM_TIMEOUT_SECONDS", "downstream_timeout_seconds", float),
     ("RAG_TOP_K", "rag_top_k", int),
+    ("RAG_TIMEOUT_SECONDS", "rag_timeout_seconds", float),
     ("EMBEDDING_DIMENSIONS", "embedding_dimensions", int),
 )
 # Empty values count as not set.
@@ -27,9 +28,16 @@ _STRINGS = (
     ("OPENAI_BASE_URL", "openai_base_url"),
     ("OPENAI_API_KEY", "openai_api_key"),
     ("HOST_API_KEY", "host_api_key"),
+    ("RAG_STORE", "rag_store"),
+    ("RAG_INDEX_PATH", "rag_index_path"),
+    ("RAG_DESTINATIONS_FILE", "rag_destinations_file"),
 )
+_BOOLEANS = (("RAG_ENABLED", "rag_enabled"),)
+_TRUE, _FALSE = {"true", "1", "yes", "on"}, {"false", "0", "no", "off"}
 
-ENV_VARS = tuple(name for name, *_ in _NUMBERS + _STRINGS)
+RAG_STORES = ("chroma", "file")
+
+ENV_VARS = tuple(name for name, *_ in _NUMBERS + _STRINGS + _BOOLEANS)
 
 
 class ConfigError(ValueError):
@@ -47,6 +55,11 @@ class Settings:
     llm_timeout_seconds: float = 120
     downstream_timeout_seconds: float = 150
     rag_top_k: int = 2
+    rag_enabled: bool = True
+    rag_store: str = "chroma"
+    rag_index_path: str | None = None
+    rag_timeout_seconds: float = 5
+    rag_destinations_file: str = "data/rag/destinations.txt"
     # Secrets are kept out of repr() so they never reach a log line.
     openai_api_key: str | None = field(default=None, repr=False)
     host_api_key: str | None = field(default=None, repr=False)
@@ -68,6 +81,11 @@ class Settings:
             raise ConfigError("RAG_TOP_K must be at least 1")
         if self.embedding_dimensions < 1:
             raise ConfigError("EMBEDDING_DIMENSIONS must be at least 1")
+        if self.rag_store not in RAG_STORES:
+            raise ConfigError(f"RAG_STORE must be one of {', '.join(RAG_STORES)}, not {self.rag_store!r}")
+        object.__setattr__(self, "rag_index_path", self.rag_index_path or f"data/rag/index/{self.rag_store}")
+        if self.rag_timeout_seconds <= 0:
+            raise ConfigError("RAG_TIMEOUT_SECONDS must be greater than 0")
 
     @classmethod
     def from_env(cls, environ=None):
@@ -82,4 +100,10 @@ class Settings:
         for name, attribute in _STRINGS:
             if environ.get(name):
                 values[attribute] = environ[name]
+        for name, attribute in _BOOLEANS:
+            if environ.get(name):
+                value = environ[name].strip().lower()
+                if value not in _TRUE | _FALSE:
+                    raise ConfigError(f"{name} must be true or false, not {environ[name]!r}")
+                values[attribute] = value in _TRUE
         return cls(**values)

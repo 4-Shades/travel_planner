@@ -3,7 +3,7 @@ name = "travel-planner"
 version = "1.0.0"
 description = "ADK-Powered Travel Planner: a Host agent and three specialist agents behind a Next.js web application"
 requires-python = "~=3.11.0"
-# Dependencies are pinned in requirements.txt and requirements-dev.txt, compiled from the .in files.
+# Dependencies are pinned in requirements/*.txt, compiled from the .in files next to them.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

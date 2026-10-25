@@ -9,9 +9,19 @@ import pytest
 
 from shared.request_id import LOG_FORMAT
 from tests.asgi import AppClient
+from tests.fakes.llm import PROVIDER_ENV, FakeLLM
 
 ROOT = Path(__file__).resolve().parent.parent
 AGENTS = ["host", "flight", "stay", "activities"]
+
+
+@pytest.fixture(autouse=True)
+def model_answers_normally(respx_mock, monkeypatch):
+    """The specialists call a language model on POST /run; these tests are about the HTTP shell."""
+    for name, value in PROVIDER_ENV["ollama"].items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setenv("RAG_ENABLED", "false")
+    FakeLLM(respx_mock, "ollama").answer_normally()
 
 
 @pytest.fixture(params=AGENTS)

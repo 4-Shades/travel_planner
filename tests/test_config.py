@@ -5,7 +5,9 @@ from uvicorn.importer import import_from_string
 
 from shared.config import ConfigError, Settings
 from shared.llm import OllamaClient, OpenAIClient, create_llm_client
+from shared.rag import open_store
 from tests.asgi import AppClient
+from tests.fakes.index import GuidanceIndex
 from tests.fakes.llm import PROVIDER_ENV
 
 
@@ -69,6 +71,43 @@ def test_unknown_provider_fails_at_startup(settings):
         settings(LLM_PROVIDER="other")
 
 
+# CFG-08 (TP-SRS-186)
+@pytest.mark.parametrize("kind, store_class", [("file", "FileStore"), ("chroma", "ChromaStore")])
+def test_vector_store_selected_by_configuration(settings, tmp_path, kind, store_class):
+    GuidanceIndex(tmp_path, kind).build()
+    config = settings(RAG_STORE=kind, RAG_INDEX_PATH=str(tmp_path / f"index-{kind}"))
+    assert type(open_store(config.rag_store, config.rag_index_path)).__name__ == store_class
+
+
+# CFG-08 (TP-SRS-186)
+def test_unknown_vector_store_fails_at_startup(settings):
+    with pytest.raises(ConfigError, match="RAG_STORE"):
+        settings(RAG_STORE="pinecone")
+
+
+# CFG-08: each store has its own default index location.
+@pytest.mark.parametrize("kind", ["file", "chroma"])
+def test_index_path_defaults_per_store(settings, kind):
+    assert settings(RAG_STORE=kind).rag_index_path == f"data/rag/index/{kind}"
+
+
+# CFG-08: retrieval settings.
+def test_retrieval_settings(settings):
+    defaults = settings()
+    assert (defaults.rag_enabled, defaults.rag_store, defaults.rag_timeout_seconds) == (True, "chroma", 5)
+    assert defaults.rag_destinations_file == "data/rag/destinations.txt"
+
+
+@pytest.mark.parametrize("value, enabled", [("false", False), ("0", False), ("no", False), ("true", True), ("1", True)])
+def test_rag_enabled_values(settings, value, enabled):
+    assert settings(RAG_ENABLED=value).rag_enabled is enabled
+
+
+def test_rag_enabled_rejects_other_values(settings):
+    with pytest.raises(ConfigError, match="RAG_ENABLED"):
+        settings(RAG_ENABLED="sometimes")
+
+
 # CFG-04 (TP-SRS-142)
 @pytest.mark.parametrize(
     "llm, downstream, accepted",
@@ -85,7 +124,7 @@ def test_timeouts_must_nest(settings, llm, downstream, accepted):
 
 # CFG-04: a value that is not a number stops startup and names the variable.
 @pytest.mark.parametrize(
-    "name", ["LLM_TIMEOUT_SECONDS", "DOWNSTREAM_TIMEOUT_SECONDS", "RAG_TOP_K", "EMBEDDING_DIMENSIONS"]
+    "name", ["LLM_TIMEOUT_SECONDS", "DOWNSTREAM_TIMEOUT_SECONDS", "RAG_TOP_K", "EMBEDDING_DIMENSIONS", "RAG_TIMEOUT_SECONDS"]
 )
 def test_invalid_number_names_variable(settings, name):
     with pytest.raises(ConfigError, match=name):

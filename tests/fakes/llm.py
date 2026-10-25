@@ -5,6 +5,8 @@ import json
 
 import httpx
 
+from tests import factories
+
 OLLAMA_URL = "http://ollama.test"
 OPENAI_URL = "https://openai.test/v1"
 OPENAI_KEY = "sk-test-key-0000"
@@ -16,10 +18,38 @@ PROVIDER_ENV = {
 }
 
 
+# The model-output schema each specialist asks for, by title, and a valid answer to it.
+VALID_ANSWERS = {
+    "FlightSuggestions": lambda: {"flights": [factories.flight_offer(), factories.flight_offer(airline="Other Air")]},
+    "StaySuggestions": lambda: {"stay": [factories.stay_offer(), factories.stay_offer(name="Example Inn Asakusa")]},
+    "ActivitySuggestions": lambda: {"activities": [factories.activity_offer(), factories.activity_offer(name="TeamLab")]},
+}
+
+
 def _route(respx_mock, provider, ollama_path, openai_path):
     if provider == "ollama":
         return respx_mock.post(f"{OLLAMA_URL}{ollama_path}")
     return respx_mock.post(f"{OPENAI_URL}{openai_path}")
+
+
+def _envelope(provider, text, prompt_tokens=11, completion_tokens=22):
+    if provider == "ollama":
+        return {
+            "message": {"role": "assistant", "content": text},
+            "done": True,
+            "prompt_eval_count": prompt_tokens,
+            "eval_count": completion_tokens,
+        }
+    return {
+        "choices": [{"message": {"role": "assistant", "content": text, "refusal": None}, "finish_reason": "stop"}],
+        "usage": {"prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens},
+    }
+
+
+def requested_schema(provider, body):
+    if provider == "ollama":
+        return body["format"]
+    return body["response_format"]["json_schema"]["schema"]
 
 
 class FakeLLM:
@@ -29,25 +59,20 @@ class FakeLLM:
         self.provider = provider
         self.route = _route(respx_mock, provider, "/api/chat", "/chat/completions")
 
+    def answer_normally(self):
+        """Answer every request with valid offers for whichever schema it asks for."""
+
+        def answer(request):
+            title = requested_schema(self.provider, json.loads(request.content))["title"]
+            return httpx.Response(200, json=_envelope(self.provider, json.dumps(VALID_ANSWERS[title]())))
+
+        self.route.mock(side_effect=answer)
+
     def answer(self, content, prompt_tokens=11, completion_tokens=22):
         self.answer_text(json.dumps(content), prompt_tokens, completion_tokens)
 
     def answer_text(self, text, prompt_tokens=11, completion_tokens=22):
-        if self.provider == "ollama":
-            body = {
-                "message": {"role": "assistant", "content": text},
-                "done": True,
-                "prompt_eval_count": prompt_tokens,
-                "eval_count": completion_tokens,
-            }
-        else:
-            body = {
-                "choices": [
-                    {"message": {"role": "assistant", "content": text, "refusal": None}, "finish_reason": "stop"}
-                ],
-                "usage": {"prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens},
-            }
-        self.answer_raw(body)
+        self.answer_raw(_envelope(self.provider, text, prompt_tokens, completion_tokens))
 
     def answer_raw(self, body):
         self.route.mock(return_value=httpx.Response(200, json=body))
@@ -75,6 +100,11 @@ class FakeLLM:
     @property
     def last_request(self):
         return self.route.calls.last.request
+
+    @property
+    def prompts(self):
+        """Each request's messages joined into one text, for checking what the model was told."""
+        return ["\n\n".join(message["content"] for message in body["messages"]) for body in self.requests]
 
 
 def fake_vector(text, dimensions):

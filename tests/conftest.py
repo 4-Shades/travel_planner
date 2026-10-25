@@ -14,6 +14,9 @@ def valid_request():
 
 @pytest.fixture
 def today():
-    """Freeze the clock at the plan's reference date."""
-    with freeze_time(factories.TODAY) as frozen:
+    """Start the clock at the plan's reference date.
+
+    The clock keeps ticking, because asyncio's timers (timeouts, sleeps) never fire on a stopped clock.
+    """
+    with freeze_time(factories.TODAY, tick=True) as frozen:
         yield frozen

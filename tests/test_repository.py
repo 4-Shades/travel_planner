@@ -34,11 +34,20 @@ def ignore_spec(name):
 
 
 # REP-01 (TP-SRS-166)
-@pytest.mark.parametrize(
-    "name", ["requirements.in", "requirements-dev.in", "requirements.txt", "requirements-dev.txt"]
-)
+REQUIREMENT_FILES = sorted(p.name for p in (ROOT / "requirements").glob("requirements*.*") if p.suffix in (".in", ".txt"))
+
+
+def test_requirement_files_found():
+    # Each input file has a compiled lock file beside it.
+    inputs = {name[: -len(".in")] for name in REQUIREMENT_FILES if name.endswith(".in")}
+    locks = {name[: -len(".txt")] for name in REQUIREMENT_FILES if name.endswith(".txt")}
+    assert inputs >= {"requirements", "requirements-rag", "requirements-dev"}
+    assert inputs == locks
+
+
+@pytest.mark.parametrize("name", REQUIREMENT_FILES)
 def test_python_dependencies_pinned(name):
-    lines = list(requirement_lines(ROOT / name))
+    lines = list(requirement_lines(ROOT / "requirements" / name))
     assert lines, f"{name} lists no dependencies"
     unpinned = [line for line in lines if not re.match(r"^[A-Za-z0-9._\[\]-]+==[^=<>~!*]+(\s*;.*)?$", line)]
     assert unpinned == []
