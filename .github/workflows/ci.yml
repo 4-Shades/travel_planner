@@ -25,8 +25,7 @@ jobs:
       - name: Unit and service tests
         run: pytest tests
       - name: BDD scenarios
-        # Exit code 5 means no scenarios were collected; allowed until phase 3 binds the first feature.
-        run: pytest features -m "not demonstration and not deployment" || [ $? -eq 5 ]
+        run: pytest features -m "not demonstration and not deployment"
 
   secrets:
     runs-on: ubuntu-latest

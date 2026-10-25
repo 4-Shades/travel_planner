@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "disable_existing_loggers": false,
+  "formatters": {
+    "agent": {
+      "format": "%(asctime)s %(levelname)s %(name)s [%(request_id)s] %(message)s"
+    },
+    "uvicorn": {
+      "()": "uvicorn.logging.DefaultFormatter",
+      "fmt": "%(levelprefix)s %(message)s"
+    },
+    "access": {
+      "()": "uvicorn.logging.AccessFormatter",
+      "fmt": "%(levelprefix)s %(client_addr)s - \"%(request_line)s\" %(status_code)s"
+    }
+  },
+  "handlers": {
+    "agent": {"class": "logging.StreamHandler", "formatter": "agent", "stream": "ext://sys.stderr"},
+    "uvicorn": {"class": "logging.StreamHandler", "formatter": "uvicorn", "stream": "ext://sys.stderr"},
+    "access": {"class": "logging.StreamHandler", "formatter": "access", "stream": "ext://sys.stdout"}
+  },
+  "loggers": {
+    "travel_planner": {"handlers": ["agent"], "level": "INFO", "propagate": false},
+    "uvicorn": {"handlers": ["uvicorn"], "level": "INFO", "propagate": false},
+    "uvicorn.error": {"level": "INFO"},
+    "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": false}
+  }
+}

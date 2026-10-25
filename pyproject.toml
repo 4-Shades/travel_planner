@@ -23,4 +23,5 @@ markers = [
     "metrics: BDD scenario about metrics export",
     "demonstration: run by hand against a deployment; excluded from CI",
     "deployment: run by hand against a deployment; excluded from CI",
+    "requirement(id): the SRS requirement a BDD scenario verifies, from its @TP-SRS-nnn tag",
 ]

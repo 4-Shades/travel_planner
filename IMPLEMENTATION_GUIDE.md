@@ -185,7 +185,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 
 **Exit criteria.**
 - `pytest tests` and `pytest features -m "not demonstration and not deployment"` pass.
-- `APP_MODULE=host uvicorn ...` starts locally and `GET /healthz` answers.
+- `uvicorn agents.host.app:app --log-config logging.json` starts locally, `GET /healthz` answers, and log lines show the request ID. `APP_MODULE` holds this import string.
 
 **Commit.**
 ```

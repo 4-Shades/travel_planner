@@ -1,4 +1,4 @@
-"""Fixtures for the unit and service tests (TDD plan §2.4)."""
+"""Fixtures for the unit and service tests (TDD plan §2.4). settings and agent_app are in the root conftest.py."""
 
 import pytest
 from freezegun import freeze_time
