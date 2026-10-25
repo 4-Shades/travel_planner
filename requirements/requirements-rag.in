@@ -1,0 +1,5 @@
+# The Chroma vector store, for the self-hosted guidance index (TP-SRS-106). Optional: without it
+# the specialists plan without guidance (TP-SRS-085). Compile with:
+#   uv pip compile requirements/requirements-rag.in --universal --python-version 3.11 -o requirements/requirements-rag.txt
+-c requirements.txt
+chromadb==1.5.9
