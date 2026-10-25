@@ -11,7 +11,7 @@ SERVICE_UNAVAILABLE = "Service is temporarily unavailable."
 
 def create_host_app(settings=None):
     settings = settings or Settings.from_env()
-    app = create_app("host", settings)
+    app = create_app("host", settings, api_key=settings.host_api_key)
 
     @app.post("/run", response_model=TripPlan)
     async def run(request: TravelRequest):

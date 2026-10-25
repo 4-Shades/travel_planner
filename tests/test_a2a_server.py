@@ -1,5 +1,6 @@
 """The HTTP interface every agent shares (TDD plan, iterations 3 and 4)."""
 
+import hmac
 import json
 import logging
 from pathlib import Path
@@ -92,3 +93,88 @@ def test_openapi_schema_served(client):
     schema = response.json()
     assert "openapi" in schema
     assert "post" in schema["paths"]["/run"]
+
+
+# Iteration 4: API protection
+
+
+@pytest.fixture
+def keyed_host(agent_app):
+    return AppClient(agent_app("host", HOST_API_KEY="s3cret"))
+
+
+# KEY-01 (TP-SRS-110)
+def test_missing_key_rejected(keyed_host, valid_request):
+    assert keyed_host.post("/run", json=valid_request()).status_code == 401
+
+
+# KEY-02 (TP-SRS-110)
+@pytest.mark.parametrize("key", ["wrong", "", "s3cret ", "S3CRET", "s3cre"])
+def test_wrong_key_rejected(keyed_host, valid_request, key):
+    response = keyed_host.post("/run", json=valid_request(), headers={"X-API-Key": key})
+    assert response.status_code == 401
+
+
+# KEY-03 (TP-SRS-110)
+def test_matching_key_accepted(keyed_host, valid_request):
+    response = keyed_host.post("/run", json=valid_request(), headers={"X-API-Key": "s3cret"})
+    assert response.status_code == 200
+
+
+# KEY-04 (TP-SRS-110)
+@pytest.mark.parametrize("body", [{"json": {"origin": "M"}}, {"content": b"not json"}])
+def test_key_checked_before_body(keyed_host, body):
+    response = keyed_host.post("/run", headers={"Content-Type": "application/json"}, **body)
+    assert response.status_code == 401
+
+
+# KEY-05 (TP-SRS-111)
+def test_key_compared_in_constant_time(keyed_host, valid_request, monkeypatch):
+    import shared.auth
+
+    calls = []
+    real_compare = hmac.compare_digest
+
+    def spy(given, expected):
+        calls.append((given, expected))
+        return real_compare(given, expected)
+
+    monkeypatch.setattr(shared.auth.hmac, "compare_digest", spy)
+    keyed_host.post("/run", json=valid_request(), headers={"X-API-Key": "wrong"})
+    assert calls == [(b"wrong", b"s3cret")]
+
+
+# KEY-06 (TP-SRS-112)
+def test_no_key_configured_accepts_requests(agent_app, valid_request):
+    assert AppClient(agent_app("host")).post("/run", json=valid_request()).status_code == 200
+
+
+# KEY-06: an empty HOST_API_KEY counts as not set.
+def test_empty_key_counts_as_unset(agent_app, valid_request):
+    client = AppClient(agent_app("host", HOST_API_KEY=""))
+    assert client.post("/run", json=valid_request()).status_code == 200
+
+
+# KEY-07 (TP-SRS-132)
+def test_401_body_does_not_reveal_key(keyed_host, valid_request):
+    response = keyed_host.post("/run", json=valid_request(), headers={"X-API-Key": "wrong"})
+    assert "s3cret" not in response.text
+    assert response.json() == {"detail": "A valid X-API-Key header is required."}
+
+
+# Only POST /run is protected: health, readiness, and the schema stay open (TP-SRS-002).
+@pytest.mark.parametrize("path", ["/healthz", "/readyz", "/", "/openapi.json"])
+def test_other_endpoints_need_no_key(keyed_host, path):
+    assert keyed_host.get(path).status_code == 200
+
+
+# The specialists are not public (TP-SRS-113), so the Host's key does not apply to them.
+@pytest.mark.parametrize("service", ["flight", "stay", "activities"])
+def test_specialists_do_not_check_host_key(agent_app, valid_request, service):
+    client = AppClient(agent_app(service, HOST_API_KEY="s3cret"))
+    assert client.post("/run", json=valid_request()).status_code == 200
+
+
+# The key never appears in a printed settings object.
+def test_settings_repr_hides_key(settings):
+    assert "s3cret" not in repr(settings(HOST_API_KEY="s3cret"))

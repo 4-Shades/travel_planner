@@ -43,6 +43,38 @@ def host_running_with_key(agent_app, key):
     return AppClient(agent_app("host", HOST_API_KEY=key))
 
 
+@given("the Host is running without HOST_API_KEY", target_fixture="agent")
+def host_running_without_key(agent_app):
+    return AppClient(agent_app("host"))
+
+
+@given("the specialists answer normally")
+def specialists_answer_normally():
+    # Placeholder until phase 9, when the Host calls the specialists and this step
+    # installs fake specialists that each return a valid answer.
+    pass
+
+
+@when('I post a valid travel request without an "X-API-Key" header', target_fixture="response")
+def post_valid_request_without_key(agent, travel_request):
+    return agent.post("/run", json=travel_request)
+
+
+@when(parsers.parse('I post a valid travel request with the header "{name}: {value}"'), target_fixture="response")
+def post_valid_request_with_header(agent, travel_request, name, value):
+    return agent.post("/run", json=travel_request, headers={name: value})
+
+
+@when('I post an invalid travel request without an "X-API-Key" header', target_fixture="response")
+def post_invalid_request_without_key(agent, travel_request):
+    return agent.post("/run", json={**travel_request, "origin": "M", "travellers": 0})
+
+
+@then(parsers.parse('the response body does not contain "{text}"'))
+def response_body_lacks(response, text):
+    assert text not in response.text
+
+
 @when(parsers.parse('I request "{method} {path}"'), target_fixture="response")
 def request_endpoint(agent, method, path):
     return agent.request(method, path)
