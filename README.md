@@ -27,7 +27,16 @@ pytest features -m "not demonstration and not deployment"
 
 The tests never reach a real network service: pytest-socket blocks every socket.
 
-Run an agent. `APP_MODULE` names the agent's app: `agents.host.app:app`, `agents.flight.app:app`, `agents.stay.app:app`, or `agents.activities.app:app`.
+Run the whole stack locally: the three specialists on ports 8001 to 8003, then the Host on 8000.
+
+```sh
+uvicorn agents.flight.app:app --port 8001 --log-config logging.json
+uvicorn agents.stay.app:app --port 8002 --log-config logging.json
+uvicorn agents.activities.app:app --port 8003 --log-config logging.json
+uvicorn agents.host.app:app --port 8000 --log-config logging.json
+```
+
+Run one agent. `APP_MODULE` names the agent's app: `agents.host.app:app`, `agents.flight.app:app`, `agents.stay.app:app`, or `agents.activities.app:app`.
 
 ```sh
 uvicorn agents.host.app:app --log-config logging.json
@@ -53,6 +62,21 @@ Settings come from environment variables only:
 | `RAG_TOP_K` | 2 | Guidance passages per prompt |
 | `RAG_TIMEOUT_SECONDS` | 5 | Longest wait for a guidance lookup; after it, the agent plans without guidance |
 | `HOST_API_KEY` | none | When set, the Host's `POST /run` requires a matching `X-API-Key` header |
+| `FLIGHT_SERVICE_URL` | `http://localhost:8001` | Where the Host finds the Flight agent |
+| `STAY_SERVICE_URL` | `http://localhost:8002` | Where the Host finds the Stay agent |
+| `ACTIVITIES_SERVICE_URL` | `http://localhost:8003` | Where the Host finds the Activities agent |
+
+### Guidance index
+
+Build or refresh the guidance index from Wikivoyage. The command embeds passages with the same settings as the agents, so the index matches them. Articles are cached in `data/rag/cache/` for 30 days.
+
+```sh
+python -m shared.rag.ingest                       # every destination in data/rag/destinations.txt
+python -m shared.rag.ingest Tokyo NYC --refresh   # only these, downloaded again
+python -m shared.rag.ingest --store file          # the cloud index; needs LLM_PROVIDER=openai
+```
+
+The self-hosted Chroma index (`data/rag/index/chroma/`) is not committed. The cloud index (`data/rag/index/file/`) is committed, because the cloud deployment bundles it.
 
 The Chroma index needs the optional packages in `requirements/requirements-rag.txt` (included in `requirements/requirements-dev.txt`). Without them, or without an index, the specialists plan without guidance.
 

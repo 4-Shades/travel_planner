@@ -5,6 +5,10 @@
 *.tfstate.*
 .terraform/
 
+# Guidance data built locally. The cloud index, data/rag/index/file/, is committed (TP-SRS-152).
+data/rag/cache/
+data/rag/index/chroma/
+
 # Python
 .venv/
 __pycache__/

@@ -31,6 +31,9 @@ _STRINGS = (
     ("RAG_STORE", "rag_store"),
     ("RAG_INDEX_PATH", "rag_index_path"),
     ("RAG_DESTINATIONS_FILE", "rag_destinations_file"),
+    ("FLIGHT_SERVICE_URL", "flight_service_url"),
+    ("STAY_SERVICE_URL", "stay_service_url"),
+    ("ACTIVITIES_SERVICE_URL", "activities_service_url"),
 )
 _BOOLEANS = (("RAG_ENABLED", "rag_enabled"),)
 _TRUE, _FALSE = {"true", "1", "yes", "on"}, {"false", "0", "no", "off"}
@@ -60,6 +63,10 @@ class Settings:
     rag_index_path: str | None = None
     rag_timeout_seconds: float = 5
     rag_destinations_file: str = "data/rag/destinations.txt"
+    # Where the Host finds the specialists.
+    flight_service_url: str = "http://localhost:8001"
+    stay_service_url: str = "http://localhost:8002"
+    activities_service_url: str = "http://localhost:8003"
     # Secrets are kept out of repr() so they never reach a log line.
     openai_api_key: str | None = field(default=None, repr=False)
     host_api_key: str | None = field(default=None, repr=False)

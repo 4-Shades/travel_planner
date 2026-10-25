@@ -1,12 +1,14 @@
-"""The Host agent: the only agent clients call (APP_MODULE=agents.host.app:app)."""
+"""The Host agent: the only agent clients call (APP_MODULE=agents.host.app:app).
 
-from typing import get_args
+It calls the specialists and never a language model (TP-SRS-066).
+"""
 
+from agents.host.planner import SERVICE_UNAVAILABLE, plan_trip
 from shared.config import Settings
-from shared.schemas import Part, PartError, TravelRequest, TripPlan
+from shared.schemas import TravelRequest, TripPlan
 from shared.server import create_app
 
-SERVICE_UNAVAILABLE = "Service is temporarily unavailable."
+__all__ = ["SERVICE_UNAVAILABLE", "app", "create_host_app"]
 
 
 def create_host_app(settings=None):
@@ -15,12 +17,8 @@ def create_host_app(settings=None):
 
     @app.post("/run", response_model=TripPlan)
     async def run(request: TravelRequest):
-        # Placeholder until phase 9 calls the specialists: every part is reported as unavailable.
-        return TripPlan(
-            request_id=request.request_id,
-            trip_id=request.trip_id,
-            errors=[PartError(part=part, message=SERVICE_UNAVAILABLE) for part in get_args(Part)],
-        )
+        # Status 200 for every valid request, even when some or all specialists failed (TP-SRS-064).
+        return await plan_trip(request, settings)
 
     return app
 

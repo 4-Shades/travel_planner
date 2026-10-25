@@ -1,0 +1,23 @@
+# Destinations in the guidance index (TP-SRS-100), one per line: the Wikivoyage article
+# title, then any aliases travellers may type, separated by "|". Matching is exact (TP-SRS-083).
+# Rebuild the index after changing this file: python -m shared.rag.ingest
+Tokyo
+Kyoto
+Osaka
+Seoul
+Bangkok
+Singapore
+Hong Kong | HK
+Manila
+Bali
+Sydney
+Dubai
+Istanbul
+Paris
+London
+Rome
+Barcelona
+Amsterdam
+Berlin
+New York City | NYC | New York
+San Francisco | SF

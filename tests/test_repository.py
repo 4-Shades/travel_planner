@@ -2,10 +2,14 @@
 
 import json
 import re
+import subprocess
 from pathlib import Path
 
 import pathspec
 import pytest
+
+from shared.rag import open_store
+from shared.rag.destinations import alias_map, load_destinations
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
@@ -67,6 +71,29 @@ def test_web_dependencies_pinned():
     unpinned = {name: v for name, v in versions.items() if not re.fullmatch(r"\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?", v)}
     assert unpinned == {}
     assert (WEB / "package-lock.json").exists()
+
+
+# REP-03 (TP-SRS-152)
+def test_cloud_index_committed():
+    index = ROOT / "data" / "rag" / "index" / "file"
+    if not (index / "identity.json").exists():
+        pytest.skip("The cloud index is not built yet: run the ingest command with OpenAI embeddings (phase 8)")
+    tracked = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", *(str(p.relative_to(ROOT)) for p in index.iterdir())],
+        cwd=ROOT,
+        capture_output=True,
+    )
+    assert tracked.returncode == 0, tracked.stderr.decode()
+    assert open_store("file", index).identity.provider == "openai"
+
+
+# The destination file lists the default 20 destinations (SRS §1.6), with unique names and aliases.
+def test_destination_file():
+    destinations = load_destinations(ROOT / "data" / "rag" / "destinations.txt")
+    names = [alias for d in destinations for alias in (d.name, *d.aliases)]
+    assert len(destinations) == 20
+    assert len(names) == len(set(names))
+    assert alias_map(destinations)["NYC"] == "New York City"
 
 
 # REP-02 (TP-SRS-182)

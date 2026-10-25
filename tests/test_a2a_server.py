@@ -9,6 +9,7 @@ import pytest
 
 from shared.request_id import LOG_FORMAT
 from tests.asgi import AppClient
+from tests.fakes.agents import AGENT_ENV, FakeAgent
 from tests.fakes.llm import PROVIDER_ENV, FakeLLM
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -16,12 +17,13 @@ AGENTS = ["host", "flight", "stay", "activities"]
 
 
 @pytest.fixture(autouse=True)
-def model_answers_normally(respx_mock, monkeypatch):
-    """The specialists call a language model on POST /run; these tests are about the HTTP shell."""
-    for name, value in PROVIDER_ENV["ollama"].items():
+def downstream_answers_normally(respx_mock, monkeypatch):
+    """On POST /run the Host calls the specialists, and they call a language model; these tests are about the HTTP shell."""
+    for name, value in {**PROVIDER_ENV["ollama"], **AGENT_ENV, "RAG_ENABLED": "false"}.items():
         monkeypatch.setenv(name, value)
-    monkeypatch.setenv("RAG_ENABLED", "false")
     FakeLLM(respx_mock, "ollama").answer_normally()
+    for service in ("flight", "stay", "activities"):
+        FakeAgent(respx_mock, service)
 
 
 @pytest.fixture(params=AGENTS)

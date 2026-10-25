@@ -6,6 +6,7 @@ the features it makes pass.
 """
 
 import logging
+import time
 
 import pytest
 import respx
@@ -14,6 +15,7 @@ from pytest_bdd import given, parsers, then, when
 from shared.schemas import SPECIALISTS
 from tests import factories
 from tests.asgi import AppClient
+from tests.fakes.agents import AGENT_ENV, FakeAgent
 from tests.fakes.llm import PROVIDER_ENV, FakeLLM
 
 SERVICES = {"Host": "host", "Flight": "flight", "Stay": "stay", "Activities": "activities"}
@@ -60,6 +62,7 @@ class Agent:
         self.service = service
         self._env = env
         self._client = None
+        self.last_duration = None
 
     @property
     def client(self):
@@ -68,7 +71,11 @@ class Agent:
         return self._client
 
     def request(self, method, path, **kwargs):
-        return self.client.request(method, path, **kwargs)
+        client = self.client  # built before timing, so the duration is the request's alone
+        start = time.perf_counter()
+        response = client.request(method, path, **kwargs)
+        self.last_duration = time.perf_counter() - start
+        return response
 
     def post(self, path, **kwargs):
         return self.request("POST", path, **kwargs)
@@ -89,6 +96,14 @@ def language_model(fake_router, monkeypatch, caplog):
                 monkeypatch.setenv(name, value)
     caplog.set_level(logging.INFO, logger="travel_planner")
     return LanguageModel(fake_router)
+
+
+@pytest.fixture(autouse=True)
+def specialists(fake_router, monkeypatch):
+    """Fake Flight, Stay, and Activities agents for the Host to call; they answer normally until told otherwise."""
+    for name, value in AGENT_ENV.items():
+        monkeypatch.setenv(name, value)
+    return {service: FakeAgent(fake_router, service) for service in SPECIALISTS}
 
 
 @pytest.fixture
@@ -118,10 +133,18 @@ def host_running_without_key(agent_app):
 
 
 @given("the specialists answer normally")
-def specialists_answer_normally():
-    # Placeholder until phase 9, when the Host calls the specialists and this step
-    # installs fake specialists that each return a valid answer.
-    pass
+def specialists_answer_normally(specialists):
+    for specialist in specialists.values():
+        specialist.answer_normally()
+
+
+@given("the Host and the specialists are running", target_fixture="agent")
+def host_and_specialists_running(agent_app, specialists, monkeypatch):
+    # Real specialist apps, reached in process; their language model is the fake.
+    monkeypatch.setenv("RAG_ENABLED", "false")
+    for service, specialist in specialists.items():
+        specialist.serve(agent_app(service))
+    return Agent(agent_app, "host")
 
 
 @given("retrieval is disabled")
@@ -152,6 +175,12 @@ def post_valid_request_with_header(agent, travel_request, name, value):
 @when('I post an invalid travel request without an "X-API-Key" header', target_fixture="response")
 def post_invalid_request_without_key(agent, travel_request):
     return agent.post("/run", json={**travel_request, "origin": "M", "travellers": 0})
+
+
+@when("I post a valid travel request to the Host", target_fixture="response")
+def post_valid_request_to_host(agent, travel_request):
+    assert agent.service == "host"
+    return agent.post("/run", json=travel_request)
 
 
 @when(parsers.parse("I post a valid travel request to the {name} agent"), target_fixture="response")

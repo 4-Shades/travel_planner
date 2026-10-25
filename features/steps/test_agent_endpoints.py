@@ -32,8 +32,35 @@ def test_invalid_body():
     pass
 
 
-# "A request ID is logged and forwarded to every specialist" is bound in phase 9,
-# when the Host calls the specialists.
+@scenario(FEATURE, "A request ID is logged and forwarded to every specialist")
+def test_request_id_forwarded():
+    pass
+
+
+@when(parsers.parse('I post a valid travel request to the Host with the header "{name}: {value}"'), target_fixture="response")
+def post_to_host_with_header(agent, travel_request, name, value):
+    return agent.post("/run", json=travel_request, headers={name: value})
+
+
+def log_ids(caplog, logger):
+    return {r.request_id for r in caplog.records if r.name == logger}
+
+
+@then(parsers.parse('the Host\'s log lines for the request include "{request_id}"'))
+def host_logs_id(caplog, request_id):
+    assert log_ids(caplog, "travel_planner.host") == {request_id}
+
+
+@then(parsers.parse('the Flight, Stay, and Activities agents each receive the header "{name}: {value}"'))
+def specialists_receive_header(specialists, name, value):
+    for specialist in specialists.values():
+        assert [headers[name] for headers in specialist.headers] == [value]
+
+
+@then(parsers.parse('each specialist\'s log lines for the request include "{request_id}"'))
+def specialists_log_id(caplog, request_id):
+    for service in ("flight", "stay", "activities"):
+        assert log_ids(caplog, f"travel_planner.{service}") == {request_id}
 
 
 @then("it exposes these endpoints:")

@@ -1,20 +1,25 @@
-"""Guidance retrieval (TDD plan, iteration 7), against both the Chroma store and the file store."""
+"""Guidance retrieval and ingest (TDD plan, iterations 7 and 8), against both the Chroma store and the file store."""
 
 import asyncio
 import hashlib
 import logging
 import re
 import time
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
-from shared.rag import Passage, Retriever
+from shared.rag import EmbeddingIdentity, Passage, Retriever, open_store
+from shared.rag.chunking import MAX_TOKENS, MIN_TOKENS, chunk_text, count_tokens
+from shared.rag.destinations import alias_map, load_destinations
 from shared.rag.guidance import GUIDANCE_INSTRUCTION, MAX_GUIDANCE_CHARS, MAX_PASSAGE_CHARS
+from shared.rag.ingest import main as ingest_main
+from shared.rag.ingest import one_year_after
 from shared.schemas import SPECIALISTS
 from tests.asgi import AppClient
 from tests.fakes.index import GuidanceIndex, passage
 from tests.fakes.llm import PROVIDER_ENV, FakeEmbedder, FakeLLM
+from tests.fakes.mediawiki import FakeMediaWiki, article
 
 pytestmark = pytest.mark.respx(assert_all_called=False)
 
@@ -276,10 +281,7 @@ def test_serving_does_not_change_index(plan, index):
 def snapshot(index):
     if index.kind == "file":
         return {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(index.path.iterdir())}
-    from shared.rag import open_store
-
-    store = open_store("chroma", index.path)
-    return store.count()
+    return open_store("chroma", index.path).count()
 
 
 # RAG-22 (TP-SRS-143): checked on the retriever directly, with a store of 257 destinations.
@@ -351,3 +353,255 @@ def test_response_with_sources_validates(plan, service):
     response = plan(service)
     body = SPECIALISTS[service].response.model_validate(response.json())
     assert body.sources
+
+
+# Iteration 8: guidance ingest (ING-01 to ING-14)
+
+
+INGEST_ENV = {**PROVIDER_ENV["openai"], "EMBEDDING_DIMENSIONS": "8"}
+
+
+@pytest.fixture
+def wiki(respx_mock):
+    return FakeMediaWiki(respx_mock, [article("Tokyo"), article("Kyoto"), article("New York City")])
+
+
+@pytest.fixture
+def ingest(tmp_path, monkeypatch, respx_mock, wiki, today):
+    """Run the ingest command with arguments; settings come from the environment, as in production."""
+    FakeEmbedder(respx_mock, "openai", dimensions=8)
+    FakeEmbedder(respx_mock, "ollama", dimensions=8)
+    destinations = tmp_path / "destinations.txt"
+    destinations.write_text("# Destinations\nTokyo\nKyoto\n", encoding="utf-8")
+
+    def run(*args, store="file", **env):
+        for name, value in {**INGEST_ENV, **env}.items():
+            monkeypatch.setenv(name, value)
+        argv = [
+            *args,
+            "--store", store,
+            "--index-path", str(tmp_path / f"index-{store}"),
+            "--destinations-file", str(destinations),
+            "--cache-dir", str(tmp_path / "cache"),
+        ]
+        return ingest_main(argv)
+
+    run.destinations_file = destinations
+    run.index_path = lambda store="file": tmp_path / f"index-{store}"
+    return run
+
+
+def stored(ingest, store="file"):
+    return open_store(store, ingest.index_path(store))
+
+
+def all_passages(store):
+    if hasattr(store, "passages"):
+        return store.passages
+    from shared.rag.chroma_store import _passage
+
+    result = store.collection.get(include=["documents", "metadatas"])
+    return [_passage(i, d, m) for i, d, m in zip(result["ids"], result["documents"], result["metadatas"])]
+
+
+# ING-01 (TP-SRS-100)
+def test_ingests_destinations_file(ingest, wiki):
+    assert ingest() == 0
+    assert stored(ingest).destinations() == {"Tokyo", "Kyoto"}
+    assert sorted(wiki.titles_requested) == ["Kyoto", "Tokyo"]
+
+
+# ING-02 (TP-SRS-083, TP-SRS-100)
+def test_aliases_loaded_from_destinations_file(ingest, wiki):
+    ingest.destinations_file.write_text("New York City | NYC | New York\nTokyo\n", encoding="utf-8")
+    assert ingest() == 0
+    assert stored(ingest).destinations() == {"New York City", "Tokyo"}
+    aliases = alias_map(load_destinations(ingest.destinations_file))
+    assert aliases["NYC"] == aliases["New York"] == aliases["New York City"] == "New York City"
+
+
+# ING-03 (TP-SRS-101)
+def test_unused_sections_dropped(ingest, wiki):
+    wiki.articles["Tokyo"] = article("Tokyo", sections=("Understand", "History", "Get in", "See", "Talk", "Go next"))
+    ingest("Tokyo")
+    sections = {p.section for p in all_passages(stored(ingest))}
+    assert sections == {"Understand", "Get in", "See"}
+
+
+# ING-04 (TP-SRS-101)
+def test_passages_about_300_tokens(ingest):
+    ingest()
+    by_section = {}
+    for p in all_passages(stored(ingest)):
+        by_section.setdefault((p.destination, p.section), []).append(p)
+    for passages in by_section.values():
+        assert len(passages) >= 2
+        sizes = [count_tokens(p.text) for p in sorted(passages, key=lambda p: int(p.id.rsplit("/", 1)[1]))]
+        assert all(size <= MAX_TOKENS for size in sizes)
+        assert all(size >= MIN_TOKENS for size in sizes[:-1])
+
+
+# ING-04: a sentence longer than a passage is split between words.
+def test_long_sentence_is_split():
+    chunks = chunk_text(" ".join(["word"] * 1000) + ".")
+    assert all(count_tokens(c) <= MAX_TOKENS for c in chunks)
+    assert sum(count_tokens(c) for c in chunks) == 1001
+
+
+# ING-04: short sections make one passage; empty ones none.
+def test_short_and_empty_sections():
+    assert chunk_text("Only one sentence here.") == ["Only one sentence here."]
+    assert chunk_text("  \n ") == []
+
+
+# ING-05 (TP-SRS-101)
+def test_passage_metadata_complete(ingest):
+    ingest("Tokyo")
+    passages = all_passages(stored(ingest))
+    assert passages
+    for p in passages:
+        assert p.destination == "Tokyo" and p.title == "Tokyo"
+        assert p.url == "https://en.wikivoyage.org/wiki/Tokyo"
+        assert p.revision_id == 1000
+        assert p.license == "CC BY-SA 4.0"
+        assert p.language == "en"
+        assert p.section and p.text and p.id
+        assert "==" not in p.text
+
+
+# ING-06 (TP-SRS-102)
+def test_passages_expire_after_one_year(ingest):
+    ingest("Tokyo")
+    for p in all_passages(stored(ingest)):
+        assert (p.valid_from, p.valid_until) == (date(2026, 10, 24), date(2027, 10, 24))
+
+
+# ING-06: a passage downloaded on 29 February expires on 28 February.
+def test_leap_day_expiry():
+    assert one_year_after(date(2028, 2, 29)) == date(2029, 2, 28)
+
+
+# ING-07 (TP-SRS-103)
+@pytest.mark.parametrize("store", ["file", "chroma"])
+def test_reingest_replaces_passages(ingest, wiki, store):
+    ingest(store=store)
+    count = stored(ingest, store).count()
+    wiki.set_revision("Tokyo", 2000)
+    assert ingest("Tokyo", "--refresh", store=store) == 0
+    passages = all_passages(stored(ingest, store))
+    assert len(passages) == count
+    assert {p.revision_id for p in passages if p.destination == "Tokyo"} == {2000}
+    assert {p.revision_id for p in passages if p.destination == "Kyoto"} == {1000}
+
+
+# ING-08 (TP-SRS-104)
+@pytest.mark.parametrize("days, downloads", [(29, 0), (31, 2)])
+def test_cache_used_within_30_days(ingest, wiki, today, days, downloads):
+    ingest()
+    assert len(wiki.titles_requested) == 2
+    today.move_to(date(2026, 10, 24) + timedelta(days=days))
+    ingest()
+    assert len(wiki.titles_requested) == 2 + downloads
+
+
+# ING-08: passages from a cached article keep the date it was downloaded.
+def test_cached_article_keeps_download_date(ingest, today):
+    ingest("Tokyo")
+    today.move_to(date(2026, 11, 3))
+    ingest("Tokyo")
+    assert {p.valid_from for p in all_passages(stored(ingest))} == {date(2026, 10, 24)}
+
+
+# ING-09 (TP-SRS-104)
+def test_refresh_option_downloads_again(ingest, wiki):
+    ingest()
+    ingest("--refresh")
+    assert sorted(wiki.titles_requested) == ["Kyoto", "Kyoto", "Tokyo", "Tokyo"]
+
+
+# ING-10 (TP-SRS-105)
+def test_destination_list_overrides_file(ingest, wiki):
+    assert ingest("Tokyo") == 0
+    assert wiki.titles_requested == ["Tokyo"]
+    assert stored(ingest).destinations() == {"Tokyo"}
+
+
+# ING-10: an alias given on the command line ingests its destination.
+def test_destination_list_accepts_aliases(ingest, wiki):
+    ingest.destinations_file.write_text("New York City | NYC\n", encoding="utf-8")
+    ingest("NYC")
+    assert wiki.titles_requested == ["New York City"]
+
+
+# ING-10: a missing article is reported, and the other destinations are still ingested.
+def test_missing_article_reported(ingest, caplog):
+    assert ingest("Atlantis", "Tokyo") == 1
+    assert stored(ingest).destinations() == {"Tokyo"}
+    assert any("Atlantis" in r.getMessage() for r in caplog.records)
+
+
+# ING-11 (TP-SRS-106)
+@pytest.mark.parametrize("store, store_class", [("chroma", "ChromaStore"), ("file", "FileStore")])
+def test_builds_chroma_or_file_index(ingest, store, store_class):
+    assert ingest("Tokyo", store=store) == 0
+    assert type(stored(ingest, store)).__name__ == store_class
+
+
+# ING-12 (TP-SRS-106)
+def test_cloud_index_refuses_non_openai_embeddings(ingest, capsys):
+    assert ingest("Tokyo", store="file", **PROVIDER_ENV["ollama"]) == 2
+    assert "OpenAI" in capsys.readouterr().err
+    assert not ingest.index_path("file").exists()
+
+
+# ING-12: a self-hosted index can use either provider.
+def test_chroma_index_accepts_ollama_embeddings(ingest):
+    assert ingest("Tokyo", store="chroma", **PROVIDER_ENV["ollama"]) == 0
+    assert stored(ingest, "chroma").identity.provider == "ollama"
+
+
+# ING-13 (TP-SRS-107)
+@pytest.mark.parametrize("store", ["chroma", "file"])
+def test_index_records_embedding_identity(ingest, store):
+    ingest("Tokyo", store=store)
+    assert stored(ingest, store).identity == EmbeddingIdentity("openai", "text-embedding-3-small", 8)
+
+
+# ING-13: adding to an index built with other embeddings is refused.
+def test_ingest_refuses_mismatched_index(ingest, capsys):
+    ingest("Tokyo")
+    assert ingest("Kyoto", EMBEDDING_MODEL="text-embedding-3-large") == 2
+    assert "text-embedding-3-small" in capsys.readouterr().err
+
+
+# ING-14 (TP-SRS-171)
+def test_mediawiki_user_agent_has_contact_url(ingest, wiki):
+    ingest()
+    assert wiki.user_agents
+    assert all(re.search(r"\(https?://\S+\)", agent) for agent in wiki.user_agents)
+
+
+# ING-14: the request asks for plain text with revision IDs and canonical URLs.
+def test_mediawiki_query_parameters(ingest, wiki):
+    ingest("Tokyo")
+    params = wiki.requests[0].url.params
+    assert params["action"] == "query"
+    assert params["explaintext"] == "1"
+    assert params["format"] == "json"
+
+
+# ING-01: an index built by the ingest command serves the agents.
+def test_ingested_index_serves_agents(ingest, agent_app, respx_mock, valid_request):
+    FakeLLM(respx_mock, "openai").answer_normally()
+    ingest()
+    app = agent_app(
+        "activities",
+        **INGEST_ENV,
+        RAG_STORE="file",
+        RAG_INDEX_PATH=str(ingest.index_path("file")),
+        RAG_DESTINATIONS_FILE=str(ingest.destinations_file),
+    )
+    response = AppClient(app).post("/run", json=valid_request())
+    assert response.json()["sources"] == [
+        {"title": "Tokyo", "url": "https://en.wikivoyage.org/wiki/Tokyo", "license": "CC BY-SA 4.0"}
+    ]
