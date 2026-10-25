@@ -1,0 +1,26 @@
+[project]
+name = "travel-planner"
+version = "1.0.0"
+description = "ADK-Powered Travel Planner: a Host agent and three specialist agents behind a Next.js web application"
+requires-python = "~=3.11.0"
+# Dependencies are pinned in requirements.txt and requirements-dev.txt, compiled from the .in files.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+# No test may reach a real external service (TP-SRS-187).
+addopts = "--disable-socket --allow-unix-socket"
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+bdd_features_base_dir = "features/"
+markers = [
+    "web: BDD scenario run by playwright-bdd against the web application",
+    "api: BDD scenario against an agent's HTTP API",
+    "host: BDD scenario against the Host",
+    "specialist: BDD scenario against a specialist agent",
+    "rag: BDD scenario about guidance retrieval",
+    "ingest: BDD scenario about the ingest command",
+    "metrics: BDD scenario about metrics export",
+    "demonstration: run by hand against a deployment; excluded from CI",
+    "deployment: run by hand against a deployment; excluded from CI",
+]

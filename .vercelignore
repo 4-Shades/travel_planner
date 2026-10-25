@@ -1,0 +1,11 @@
+# Secrets (TP-SRS-182). Commit .env.example only.
+.env*
+!.env.example
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Not needed in deployments
+.venv/
+__pycache__/
+.pytest_cache/

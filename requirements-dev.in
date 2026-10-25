@@ -1,0 +1,12 @@
+# Test and tooling dependencies. Compile with:
+#   uv pip compile requirements-dev.in --universal --python-version 3.11 -o requirements-dev.txt
+-c requirements.txt
+-r requirements.in
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pytest-socket==0.8.1
+pytest-bdd==9.0.0
+respx==0.23.1
+freezegun==1.5.5
+pathspec==1.1.1
+uv==0.13.5
