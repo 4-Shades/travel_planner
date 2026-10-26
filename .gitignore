@@ -22,4 +22,4 @@ web/test-results/
 web/playwright-report/
 
 # Misc
-docs\IMPLEMENTATION_GUIDE.md
+docs/IMPLEMENTATION_GUIDE.md
