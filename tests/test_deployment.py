@@ -106,6 +106,14 @@ def test_agent_image_uses_python_311():
     assert first.startswith("python:3.11.")
 
 
+# The agent image installs the runtime requirements as well as the Chroma ones, which hold
+# only Chroma and its dependencies.
+def test_agent_image_installs_runtime_requirements():
+    installs = [line for line in (ROOT / "Dockerfile").read_text(encoding="utf-8").splitlines() if "pip install" in line]
+    assert any("requirements.txt" in line.replace("requirements-rag.txt", "") for line in installs)
+    assert any("requirements-rag.txt" in line for line in installs)
+
+
 # TP-SRS-182: the web image's build context leaves out secrets and local installs.
 def test_web_image_ignores_secrets():
     lines = (ROOT / "web" / ".dockerignore").read_text(encoding="utf-8").splitlines()
