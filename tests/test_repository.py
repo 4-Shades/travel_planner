@@ -3,6 +3,7 @@
 import json
 import re
 import subprocess
+import tomllib
 from pathlib import Path
 
 import pathspec
@@ -55,6 +56,18 @@ def test_python_dependencies_pinned(name):
     assert lines, f"{name} lists no dependencies"
     unpinned = [line for line in lines if not re.match(r"^[A-Za-z0-9._\[\]-]+==[^=<>~!*]+(\s*;.*)?$", line)]
     assert unpinned == []
+
+
+# REP-01 (TP-SRS-166): Vercel installs from pyproject.toml, so its pins must match the lock files.
+def test_pyproject_matches_requirements():
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    requirements = ROOT / "requirements"
+    assert project["project"]["dependencies"] == list(requirement_lines(requirements / "requirements.in")), (
+        "Copy requirements/requirements.in into [project] dependencies in pyproject.toml"
+    )
+    assert project["tool"]["uv"]["constraint-dependencies"] == list(requirement_lines(requirements / "requirements.txt")), (
+        "Copy requirements/requirements.txt into [tool.uv] constraint-dependencies in pyproject.toml"
+    )
 
 
 # REP-01 (TP-SRS-166)

@@ -55,8 +55,8 @@ Vercel Services was in beta when this was written, and its documentation does no
 
 | Item | Why it matters | What to check |
 | --- | --- | --- |
-| Python dependencies | Vercel looks for `requirements.txt` or `pyproject.toml` at a Python service's root (`./`). The pinned lock files are in `requirements/`. | The build log installs the pins from `requirements/requirements.txt`. If not, give the Python services a root-level dependency file generated from that lock. |
-| Python version | The SRS requires Python 3.11 (TP-SRS-161); Vercel's Python guides mention 3.12 and later. | The build log's Python version. The test suite runs on 3.11; if Vercel uses a later version, run the suite on that version too and record the difference. |
+| Python dependencies | **Resolved.** Vercel installs from `pyproject.toml` with `uv lock`. `pyproject.toml` lists the runtime pins and, as uv constraints, every version in `requirements/requirements.txt`, so Vercel's lock has the same 30 versions; `tests/test_repository.py` keeps them in step. | After changing a requirement, copy the new pins into `pyproject.toml` (the test says which list). |
+| Python version | **Exception to TP-SRS-161, agreed on October 26, 2026.** Vercel has no Python 3.11 and builds with 3.12 (3.12.15 on the first preview). Docker and local development stay on 3.11; CI runs the Python suites on both. | The build log shows 3.12, and CI is green on both versions. |
 | Function duration | The web route waits up to 180 s for the Host, and the Host up to 150 s for a specialist (TP-SRS-142, SRS §1.7). | Each service's maximum duration is above those waits. `web/app/api/plan/route.ts` sets `maxDuration = 190`. |
 | Secrets by service | Vercel scopes environment variables by environment, not by service, so every service may receive every secret (TP-SRS-183). | Whether Services can scope variables per service. If not, record the exception, or split the specialists into their own project. |
 | Bundle size | The specialists bundle the index; SRS §1.3.6 estimates about 226 MB. | The deployment succeeds within the function size limit. |

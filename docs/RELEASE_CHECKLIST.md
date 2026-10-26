@@ -37,7 +37,7 @@ Requirements that tests cannot fully check in CI: the inspections and demonstrat
 | Requirement | Check | Result |
 | --- | --- | --- |
 | 150 | Code review: no database, and no file written while handling a request. The "Data retention" BDD scenario passes. | |
-| 160 to 163 | Next.js web application; Python 3.11 FastAPI agents in one codebase selected by `APP_MODULE`; contracts only in `shared/schemas.py`; configuration only from environment variables. | |
+| 160 to 163 | Next.js web application; Python 3.11 FastAPI agents in one codebase selected by `APP_MODULE` (3.12 on Vercel, an agreed exception: docs/DEPLOYMENT.md); contracts only in `shared/schemas.py`; configuration only from environment variables. | |
 | 182 | No secret in source, Terraform state, or version control (secret scan), and `.env` files are excluded from Docker and Vercel uploads. | |
 | 185 | CI workflows use no stored long-lived cloud keys. | |
 | 186 | Switching `LLM_PROVIDER` or `RAG_STORE` needs only configuration. | |

@@ -27,4 +27,3 @@ web/tsconfig.tsbuildinfo
 # Misc
 docs/IMPLEMENTATION_GUIDE.md
 .vercel
-.env*
