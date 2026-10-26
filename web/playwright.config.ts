@@ -1,34 +1,39 @@
 import { defineConfig, devices } from "@playwright/test";
 import { defineBddConfig } from "playwright-bdd";
 
-// Two copies of the built app, so scenarios can run with and without HOST_API_KEY.
+// Copies of the built app with different settings: with a key, without one, and with the
+// sentinel key that the key-exposure checks look for.
 export const APP_WITH_KEY = "http://127.0.0.1:3100";
 export const APP_WITHOUT_KEY = "http://127.0.0.1:3101";
+export const APP_WITH_SENTINEL_KEY = "http://127.0.0.1:3102";
 export const FAKE_HOST = "http://127.0.0.1:8790";
 export const TEST_HOST_API_KEY = "test-key-123";
+export const SENTINEL_HOST_API_KEY = "sentinel-9f2c";
 
-const testDir = defineBddConfig({
+const bddDir = defineBddConfig({
   // The feature files live with the Python ones, in the repository's features/ folder.
   featuresRoot: "../features",
-  features: [
-    "../features/web/trip_form.feature",
-    "../features/web/planning_progress.feature",
-    "../features/web/results_display.feature",
-    "../features/web/host_access.feature",
-  ],
+  features: ["../features/web/*.feature"],
   steps: ["tests/bdd/steps/*.ts"],
-  // The two scenarios whose steps phase 12 defines (a full page reload and the API key in the
-  // built pages) are reported as skipped until then.
-  missingSteps: "skip-scenario",
 });
 
 // The planning service "does not answer within 180 seconds" is shortened to this, so the
 // scenario takes seconds; the 180-second default is checked by the unit tests.
 const appEnv = { HOST_SERVICE_URL: FAKE_HOST, HOST_TIMEOUT_SECONDS: "8", NEXT_TELEMETRY_DISABLED: "1" };
 
+function app(port: number, key: string) {
+  return {
+    command: `npx next start -p ${port} -H 127.0.0.1`,
+    url: `http://127.0.0.1:${port}`,
+    env: { ...appEnv, HOST_API_KEY: key },
+    reuseExistingServer: false,
+  };
+}
+
+const chrome = { ...devices["Desktop Chrome"] };
+
 export default defineConfig({
-  testDir,
-  // One fake Host is shared by every scenario, so scenarios run one at a time.
+  // One fake Host is shared by every test, so tests run one at a time.
   workers: 1,
   fullyParallel: false,
   timeout: 60_000,
@@ -41,24 +46,18 @@ export default defineConfig({
     timezoneId: "UTC",
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "bdd", testDir: bddDir, use: chrome },
+    { name: "e2e", testDir: "tests/e2e", use: chrome },
+  ],
   webServer: [
     {
       command: "node tests/bdd/fake-host.ts",
       url: `${FAKE_HOST}/__control/health`,
       reuseExistingServer: false,
     },
-    {
-      command: "npx next start -p 3100 -H 127.0.0.1",
-      url: APP_WITH_KEY,
-      env: { ...appEnv, HOST_API_KEY: TEST_HOST_API_KEY },
-      reuseExistingServer: false,
-    },
-    {
-      command: "npx next start -p 3101 -H 127.0.0.1",
-      url: APP_WITHOUT_KEY,
-      env: { ...appEnv, HOST_API_KEY: "" },
-      reuseExistingServer: false,
-    },
+    app(3100, TEST_HOST_API_KEY),
+    app(3101, ""),
+    app(3102, SENTINEL_HOST_API_KEY),
   ],
 });

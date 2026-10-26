@@ -7,6 +7,17 @@ Travel planner project
 - [Test-Driven Development Plan](docs/TEST_DRIVEN_DEVELOPMENT_PLAN.md)
 - [Behavior Scenarios](docs/BEHAVIOR_DRIVEN_DEVELOPMENT_SCENARIOS.md)
 - [Implementation Guide](docs/IMPLEMENTATION_GUIDE.md)
+- [HTTP API](docs/API.md), [Configuration](docs/CONFIGURATION.md), [Deployment](docs/DEPLOYMENT.md), and the [Release checklist](docs/RELEASE_CHECKLIST.md)
+
+## Quick start
+
+Run everything locally with Docker Compose, using Ollama, at no cost:
+
+```sh
+docker compose up -d ollama models && docker compose run --rm ingest && docker compose up -d
+```
+
+Then open http://localhost:3000. [Deployment](docs/DEPLOYMENT.md) covers this and the Vercel deployment.
 
 ## Development
 
@@ -42,30 +53,7 @@ Run one agent. `APP_MODULE` names the agent's app: `agents.host.app:app`, `agent
 uvicorn agents.host.app:app --log-config logging.json
 ```
 
-Settings come from environment variables only:
-
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `LLM_PROVIDER` | `ollama` | `ollama` or `openai` |
-| `LLM_MODEL` | `qwen2.5:3b` (Ollama), `gpt-4.1-mini` (OpenAI) | Chat model; it must accept temperature 0 |
-| `EMBEDDING_MODEL` | `nomic-embed-text` (Ollama), `text-embedding-3-small` (OpenAI) | Embedding model |
-| `EMBEDDING_DIMENSIONS` | 768 (Ollama), 1536 (OpenAI) | Vector size the embedding model returns |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama address |
-| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI address |
-| `OPENAI_API_KEY` | none | Required by agents that call OpenAI |
-| `LLM_TIMEOUT_SECONDS` | 120 | Longest wait for one model call |
-| `DOWNSTREAM_TIMEOUT_SECONDS` | 150 | Longest wait for a specialist; between `LLM_TIMEOUT_SECONDS` and 180 |
-| `RAG_ENABLED` | `true` | Add Wikivoyage guidance to the specialists' prompts |
-| `RAG_STORE` | `chroma` | Guidance index type: `chroma` (self-hosted) or `file` (cloud) |
-| `RAG_INDEX_PATH` | `data/rag/index/<store>` | Guidance index location |
-| `RAG_DESTINATIONS_FILE` | `data/rag/destinations.txt` | Destinations and their aliases, one per line: `New York City \| NYC` |
-| `RAG_TOP_K` | 2 | Guidance passages per prompt |
-| `RAG_TIMEOUT_SECONDS` | 5 | Longest wait for a guidance lookup; after it, the agent plans without guidance |
-| `HOST_API_KEY` | none | When set, the Host's `POST /run` requires a matching `X-API-Key` header |
-| `FLIGHT_SERVICE_URL` | `http://localhost:8001` | Where the Host finds the Flight agent |
-| `STAY_SERVICE_URL` | `http://localhost:8002` | Where the Host finds the Stay agent |
-| `ACTIVITIES_SERVICE_URL` | `http://localhost:8003` | Where the Host finds the Activities agent |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | none | When set, each agent pushes metrics over OTLP/HTTP every minute; add `OTEL_EXPORTER_OTLP_HEADERS` for the endpoint's credentials |
+Settings come from environment variables only; [Configuration](docs/CONFIGURATION.md) lists them all, with which service reads each.
 
 ### Web application
 
@@ -79,11 +67,7 @@ npm test                                            # unit tests
 npm run test:bdd                                    # browser scenarios, against a fake Host
 ```
 
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `HOST_SERVICE_URL` | none | The Host's address, read on the server only |
-| `HOST_API_KEY` | none | Sent to the Host as `X-API-Key` when set; never sent to the browser |
-| `HOST_TIMEOUT_SECONDS` | 180 | Longest wait for the Host |
+The web application reads `HOST_SERVICE_URL`, `HOST_API_KEY`, and `HOST_TIMEOUT_SECONDS`. `npm run test:bdd` also runs the end-to-end tests in `web/tests/e2e/`.
 
 ### Guidance index
 

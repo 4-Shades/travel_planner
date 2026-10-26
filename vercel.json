@@ -1,0 +1,31 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "web": {
+      "root": "web/",
+      "framework": "nextjs",
+      "bindings": [{ "type": "service", "service": "host", "format": "url", "env": "HOST_SERVICE_URL" }]
+    },
+    "host": {
+      "root": "./",
+      "framework": "fastapi",
+      "entrypoint": "agents.host.app:app",
+      "bindings": [
+        { "type": "service", "service": "flight", "format": "url", "env": "FLIGHT_SERVICE_URL" },
+        { "type": "service", "service": "stay", "format": "url", "env": "STAY_SERVICE_URL" },
+        { "type": "service", "service": "activities", "format": "url", "env": "ACTIVITIES_SERVICE_URL" }
+      ]
+    },
+    "flight": { "root": "./", "framework": "fastapi", "entrypoint": "agents.flight.app:app" },
+    "stay": { "root": "./", "framework": "fastapi", "entrypoint": "agents.stay.app:app" },
+    "activities": { "root": "./", "framework": "fastapi", "entrypoint": "agents.activities.app:app" }
+  },
+  "rewrites": [
+    { "source": "/run", "destination": { "service": "host" } },
+    { "source": "/healthz", "destination": { "service": "host" } },
+    { "source": "/readyz", "destination": { "service": "host" } },
+    { "source": "/openapi.json", "destination": { "service": "host" } },
+    { "source": "/docs", "destination": { "service": "host" } },
+    { "source": "/(.*)", "destination": { "service": "web" } }
+  ]
+}

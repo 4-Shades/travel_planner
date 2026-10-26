@@ -4,7 +4,7 @@ import { type Page, expect } from "@playwright/test";
 import { PART_LABELS, UNAVAILABLE_MESSAGE } from "../../../lib/messages";
 import type { Part } from "../../../lib/types";
 import { TEST_HOST_API_KEY } from "../../../playwright.config";
-import { Given, Then, When } from "./fixtures";
+import { Given, Then, When, tabTo } from "./fixtures";
 
 // Steps match whatever keyword they are written with (Given, When, or Then).
 Given("I open the travel planner", async ({ app }) => {
@@ -53,15 +53,6 @@ When("{int} seconds pass", async ({ page }, seconds: number) => {
 // Next.js adds a route announcer with role="alert" to every page, so alerts are looked for in main.
 function formProblems(page: Page) {
   return page.locator("main form").getByRole("alert");
-}
-
-/** Press Tab until the element with this id has focus; date fields take several Tabs to leave. */
-async function tabTo(page: Page, id: string) {
-  for (let presses = 0; presses < 8; presses++) {
-    await page.keyboard.press("Tab");
-    if (await page.evaluate((wanted) => document.activeElement?.id === wanted, id)) return;
-  }
-  throw new Error(`Tab never reached #${id}`);
 }
 
 When("I fill in and submit the form using only the keyboard", async ({ app, page }) => {

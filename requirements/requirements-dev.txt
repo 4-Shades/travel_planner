@@ -380,6 +380,7 @@ python-dotenv==1.2.4
 pyyaml==6.0.3
     # via
     #   -c requirements/requirements-rag.txt
+    #   -r requirements/requirements-dev.in
     #   chromadb
     #   huggingface-hub
     #   kubernetes

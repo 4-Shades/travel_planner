@@ -1,0 +1,141 @@
+# The self-hosted stack (TP-SRS-164): Ollama, the four agents, and the web application.
+# No paid service is involved (TP-SRS-188).
+#
+#   cp .env.example .env              # optional: set HOST_API_KEY and metrics settings
+#   docker compose up -d ollama models
+#   docker compose run --rm ingest    # build the guidance index; repeat when destinations change
+#   docker compose up -d              # then open http://localhost:3000
+#
+# Only the web application (3000) and the Host (8000) publish ports. The specialists are reached
+# by the Host over the Compose network and cannot be reached from outside it (TP-SRS-113).
+
+name: travel-planner
+
+x-agent: &agent
+  build: .
+  image: travel-planner-agent:1.0.0
+  restart: unless-stopped
+
+x-agent-healthcheck: &agent-healthcheck
+  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
+  interval: 10s
+  timeout: 5s
+  retries: 6
+
+# What every specialist needs: the local model, the guidance index, and optional metrics.
+x-specialist-env: &specialist-env
+  LLM_PROVIDER: ollama
+  OLLAMA_BASE_URL: http://ollama:11434
+  LLM_TIMEOUT_SECONDS: "120"
+  RAG_STORE: chroma
+  RAG_INDEX_PATH: /data/index/chroma
+  RAG_DESTINATIONS_FILE: data/rag/destinations.txt
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+  OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+
+x-specialist: &specialist
+  <<: *agent
+  expose: ["8000"]
+  # Chroma opens its files for writing even when it only reads, so the volume is not read-only;
+  # the agents never change the index (TP-SRS-151).
+  volumes: ["guidance:/data"]
+  depends_on:
+    models:
+      condition: service_completed_successfully
+  healthcheck: *agent-healthcheck
+
+services:
+  ollama:
+    image: ollama/ollama:0.40.3
+    restart: unless-stopped
+    environment:
+      # Keep the chat and embedding models loaded together for 30 minutes (TP-SRS-144).
+      OLLAMA_KEEP_ALIVE: 30m
+      OLLAMA_MAX_LOADED_MODELS: "2"
+    volumes: ["ollama:/root/.ollama"]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # Downloads the models once (about 2.3 GB); later runs find them in the ollama volume.
+  models:
+    image: ollama/ollama:0.40.3
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c", "ollama pull qwen2.5:3b && ollama pull nomic-embed-text"]
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+  # Builds the Chroma guidance index from Wikivoyage: docker compose run --rm ingest
+  ingest:
+    <<: *agent
+    profiles: ["ingest"]
+    restart: "no"
+    command: ["python", "-m", "shared.rag.ingest", "--store", "chroma", "--index-path", "/data/index/chroma", "--cache-dir", "/data/cache"]
+    environment:
+      LLM_PROVIDER: ollama
+      OLLAMA_BASE_URL: http://ollama:11434
+      RAG_DESTINATIONS_FILE: data/rag/destinations.txt
+    volumes: ["guidance:/data"]
+    depends_on:
+      models:
+        condition: service_completed_successfully
+
+  flight:
+    <<: *specialist
+    environment:
+      <<: *specialist-env
+      APP_MODULE: agents.flight.app:app
+
+  stay:
+    <<: *specialist
+    environment:
+      <<: *specialist-env
+      APP_MODULE: agents.stay.app:app
+
+  activities:
+    <<: *specialist
+    environment:
+      <<: *specialist-env
+      APP_MODULE: agents.activities.app:app
+
+  host:
+    <<: *agent
+    ports: ["8000:8000"]
+    environment:
+      APP_MODULE: agents.host.app:app
+      FLIGHT_SERVICE_URL: http://flight:8000
+      STAY_SERVICE_URL: http://stay:8000
+      ACTIVITIES_SERVICE_URL: http://activities:8000
+      DOWNSTREAM_TIMEOUT_SECONDS: "150"
+      HOST_API_KEY: ${HOST_API_KEY:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+    healthcheck: *agent-healthcheck
+    depends_on:
+      flight:
+        condition: service_healthy
+      stay:
+        condition: service_healthy
+      activities:
+        condition: service_healthy
+
+  web:
+    build: ./web
+    image: travel-planner-web:1.0.0
+    restart: unless-stopped
+    ports: ["3000:3000"]
+    environment:
+      HOST_SERVICE_URL: http://host:8000
+      HOST_API_KEY: ${HOST_API_KEY:-}
+    depends_on:
+      host:
+        condition: service_healthy
+
+volumes:
+  ollama:
+  guidance:

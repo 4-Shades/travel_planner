@@ -12,3 +12,4 @@ respx==0.23.1
 freezegun==1.5.5
 pathspec==1.1.1
 uv==0.13.5
+pyyaml==6.0.3

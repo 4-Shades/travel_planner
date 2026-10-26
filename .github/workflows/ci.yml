@@ -26,6 +26,8 @@ jobs:
         run: pytest tests
       - name: BDD scenarios
         run: pytest features -m "not demonstration and not deployment"
+      - name: Docker Compose configuration
+        run: docker compose config --quiet
 
   web:
     runs-on: ubuntu-latest
