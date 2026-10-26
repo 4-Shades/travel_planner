@@ -41,7 +41,9 @@ certifi==2026.10.23
     #   kubernetes
     #   requests
 charset-normalizer==3.5.2
-    # via requests
+    # via
+    #   -c requirements/requirements.txt
+    #   requests
 chromadb==1.5.9
     # via -r requirements/requirements-rag.in
 click==8.5.0
@@ -67,7 +69,9 @@ frozenlist==1.8.0
 fsspec==2026.9.0
     # via huggingface-hub
 googleapis-common-protos==1.76.0
-    # via opentelemetry-exporter-otlp-proto-grpc
+    # via
+    #   -c requirements/requirements.txt
+    #   opentelemetry-exporter-otlp-proto-grpc
 grpcio==1.84.1
     # via
     #   chromadb
@@ -141,22 +145,30 @@ opentelemetry-api==1.45.1
     #   opentelemetry-sdk
     #   opentelemetry-semantic-conventions
 opentelemetry-exporter-otlp-common==0.66b1
-    # via opentelemetry-exporter-otlp-proto-grpc
+    # via
+    #   -c requirements/requirements.txt
+    #   opentelemetry-exporter-otlp-proto-grpc
 opentelemetry-exporter-otlp-proto-common==1.45.1
-    # via opentelemetry-exporter-otlp-proto-grpc
+    # via
+    #   -c requirements/requirements.txt
+    #   opentelemetry-exporter-otlp-proto-grpc
 opentelemetry-exporter-otlp-proto-grpc==1.45.1
     # via chromadb
 opentelemetry-proto==1.45.1
     # via
+    #   -c requirements/requirements.txt
     #   opentelemetry-exporter-otlp-proto-common
     #   opentelemetry-exporter-otlp-proto-grpc
 opentelemetry-sdk==1.45.1
     # via
+    #   -c requirements/requirements.txt
     #   chromadb
     #   opentelemetry-exporter-otlp-common
     #   opentelemetry-exporter-otlp-proto-grpc
 opentelemetry-semantic-conventions==0.66b1
-    # via opentelemetry-sdk
+    # via
+    #   -c requirements/requirements.txt
+    #   opentelemetry-sdk
 orjson==3.13.0
     # via chromadb
 overrides==7.7.0
@@ -172,6 +184,7 @@ propcache==0.5.4
     #   yarl
 protobuf==7.36.2
     # via
+    #   -c requirements/requirements.txt
     #   googleapis-common-protos
     #   onnxruntime
     #   opentelemetry-proto
@@ -213,6 +226,7 @@ referencing==0.37.0
     #   jsonschema-specifications
 requests==2.34.2
     # via
+    #   -c requirements/requirements.txt
     #   kubernetes
     #   requests-oauthlib
 requests-oauthlib==2.0.0
@@ -272,6 +286,7 @@ tzdata==2026.5
     # via python-dateutil
 urllib3==2.8.0
     # via
+    #   -c requirements/requirements.txt
     #   kubernetes
     #   requests
 uvicorn==0.54.0

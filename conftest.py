@@ -49,14 +49,17 @@ def settings(monkeypatch):
 
 @pytest.fixture
 def agent_app(settings):
-    """Factory that builds an agent's app from environment variables: agent_app("host", HOST_API_KEY="k")."""
+    """Factory that builds an agent's app from environment variables: agent_app("host", HOST_API_KEY="k").
+
+    metrics, if given, replaces the metrics the app would set up from its settings.
+    """
     from agents.host.app import create_host_app
     from agents.specialist import create_specialist_app
 
-    def build(service, **env):
+    def build(service, metrics=None, **env):
         config = settings(**env)
         if service == "host":
-            return create_host_app(config)
-        return create_specialist_app(service, config)
+            return create_host_app(config, metrics=metrics)
+        return create_specialist_app(service, config, metrics=metrics)
 
     return build

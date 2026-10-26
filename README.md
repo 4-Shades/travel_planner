@@ -65,6 +65,25 @@ Settings come from environment variables only:
 | `FLIGHT_SERVICE_URL` | `http://localhost:8001` | Where the Host finds the Flight agent |
 | `STAY_SERVICE_URL` | `http://localhost:8002` | Where the Host finds the Stay agent |
 | `ACTIVITIES_SERVICE_URL` | `http://localhost:8003` | Where the Host finds the Activities agent |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | none | When set, each agent pushes metrics over OTLP/HTTP every minute; add `OTEL_EXPORTER_OTLP_HEADERS` for the endpoint's credentials |
+
+### Web application
+
+The Next.js app in `web/` calls the Host from its server, never from the browser. It needs Node.js 20.9 or later.
+
+```sh
+cd web
+npm ci
+HOST_SERVICE_URL=http://localhost:8000 npm run dev   # then open http://localhost:3000
+npm test                                            # unit tests
+npm run test:bdd                                    # browser scenarios, against a fake Host
+```
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `HOST_SERVICE_URL` | none | The Host's address, read on the server only |
+| `HOST_API_KEY` | none | Sent to the Host as `X-API-Key` when set; never sent to the browser |
+| `HOST_TIMEOUT_SECONDS` | 180 | Longest wait for the Host |
 
 ### Guidance index
 

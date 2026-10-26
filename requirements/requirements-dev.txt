@@ -61,6 +61,7 @@ certifi==2026.10.23
 charset-normalizer==3.5.2
     # via
     #   -c requirements/requirements-rag.txt
+    #   -c requirements/requirements.txt
     #   requests
 chromadb==1.5.9
     # via
@@ -111,7 +112,9 @@ gherkin-official==42.0.1
 googleapis-common-protos==1.76.0
     # via
     #   -c requirements/requirements-rag.txt
+    #   -c requirements/requirements.txt
     #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-exporter-otlp-proto-http
 grpcio==1.84.1
     # via
     #   -c requirements/requirements-rag.txt
@@ -229,35 +232,55 @@ opentelemetry-api==1.45.1
     #   -c requirements/requirements.txt
     #   chromadb
     #   fastapi
+    #   opentelemetry-exporter-http-transport
     #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-exporter-otlp-proto-http
     #   opentelemetry-sdk
     #   opentelemetry-semantic-conventions
+opentelemetry-exporter-http-transport==0.66b1
+    # via
+    #   -c requirements/requirements.txt
+    #   opentelemetry-exporter-otlp-proto-http
 opentelemetry-exporter-otlp-common==0.66b1
     # via
     #   -c requirements/requirements-rag.txt
+    #   -c requirements/requirements.txt
     #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-exporter-otlp-proto-http
 opentelemetry-exporter-otlp-proto-common==1.45.1
     # via
     #   -c requirements/requirements-rag.txt
+    #   -c requirements/requirements.txt
     #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-exporter-otlp-proto-http
 opentelemetry-exporter-otlp-proto-grpc==1.45.1
     # via
     #   -c requirements/requirements-rag.txt
     #   chromadb
+opentelemetry-exporter-otlp-proto-http==1.45.1
+    # via
+    #   -c requirements/requirements.txt
+    #   -r requirements/requirements.in
 opentelemetry-proto==1.45.1
     # via
     #   -c requirements/requirements-rag.txt
+    #   -c requirements/requirements.txt
     #   opentelemetry-exporter-otlp-proto-common
     #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-exporter-otlp-proto-http
 opentelemetry-sdk==1.45.1
     # via
     #   -c requirements/requirements-rag.txt
+    #   -c requirements/requirements.txt
+    #   -r requirements/requirements.in
     #   chromadb
     #   opentelemetry-exporter-otlp-common
     #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-exporter-otlp-proto-http
 opentelemetry-semantic-conventions==0.66b1
     # via
     #   -c requirements/requirements-rag.txt
+    #   -c requirements/requirements.txt
     #   opentelemetry-sdk
 orjson==3.13.0
     # via
@@ -293,6 +316,7 @@ propcache==0.5.4
 protobuf==7.36.2
     # via
     #   -c requirements/requirements-rag.txt
+    #   -c requirements/requirements.txt
     #   googleapis-common-protos
     #   onnxruntime
     #   opentelemetry-proto
@@ -368,7 +392,10 @@ referencing==0.37.0
 requests==2.34.2
     # via
     #   -c requirements/requirements-rag.txt
+    #   -c requirements/requirements.txt
     #   kubernetes
+    #   opentelemetry-exporter-http-transport
+    #   opentelemetry-exporter-otlp-proto-http
     #   requests-oauthlib
 requests-oauthlib==2.0.0
     # via
@@ -437,6 +464,7 @@ typing-extensions==4.16.0
     #   kubernetes
     #   opentelemetry-api
     #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-exporter-otlp-proto-http
     #   opentelemetry-sdk
     #   opentelemetry-semantic-conventions
     #   pydantic
@@ -461,6 +489,7 @@ tzdata==2026.5
 urllib3==2.8.0
     # via
     #   -c requirements/requirements-rag.txt
+    #   -c requirements/requirements.txt
     #   kubernetes
     #   requests
 uv==0.13.5

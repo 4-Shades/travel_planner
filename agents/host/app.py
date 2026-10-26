@@ -11,9 +11,9 @@ from shared.server import create_app
 __all__ = ["SERVICE_UNAVAILABLE", "app", "create_host_app"]
 
 
-def create_host_app(settings=None):
+def create_host_app(settings=None, metrics=None):
     settings = settings or Settings.from_env()
-    app = create_app("host", settings, api_key=settings.host_api_key)
+    app = create_app("host", settings, api_key=settings.host_api_key, metrics=metrics)
 
     @app.post("/run", response_model=TripPlan)
     async def run(request: TravelRequest):

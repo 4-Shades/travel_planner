@@ -34,6 +34,7 @@ _STRINGS = (
     ("FLIGHT_SERVICE_URL", "flight_service_url"),
     ("STAY_SERVICE_URL", "stay_service_url"),
     ("ACTIVITIES_SERVICE_URL", "activities_service_url"),
+    ("OTEL_EXPORTER_OTLP_ENDPOINT", "otel_endpoint"),
 )
 _BOOLEANS = (("RAG_ENABLED", "rag_enabled"),)
 _TRUE, _FALSE = {"true", "1", "yes", "on"}, {"false", "0", "no", "off"}
@@ -67,6 +68,8 @@ class Settings:
     flight_service_url: str = "http://localhost:8001"
     stay_service_url: str = "http://localhost:8002"
     activities_service_url: str = "http://localhost:8003"
+    # Metrics are exported only when this is set (TP-SRS-121).
+    otel_endpoint: str | None = None
     # Secrets are kept out of repr() so they never reach a log line.
     openai_api_key: str | None = field(default=None, repr=False)
     host_api_key: str | None = field(default=None, repr=False)

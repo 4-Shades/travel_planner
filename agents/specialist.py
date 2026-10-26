@@ -2,15 +2,17 @@
 
 import importlib
 import logging
+import time
 
 from pydantic import ValidationError
 
 from shared.config import Settings
-from shared.llm import LLMError, create_llm_client
+from shared.llm import LLMError, LLMTimeout, create_llm_client
 from shared.rag import create_retriever
 from shared.rag.guidance import GUIDANCE_INSTRUCTION, render_guidance, sources_of
 from shared.schemas import SPECIALISTS, TravelRequest
 from shared.server import create_app
+from shared.telemetry import create_metrics
 
 UNAVAILABLE = {
     "flight": "Flight planner is temporarily unavailable.",
@@ -50,23 +52,41 @@ def build_messages(prompt, request, guidance=None):
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
-def create_specialist_app(service, settings=None):
+def create_specialist_app(service, settings=None, metrics=None):
     settings = settings or Settings.from_env()
+    metrics = metrics or create_metrics(service, settings)
     contract = SPECIALISTS[service]
     prompt = importlib.import_module(f"agents.{service}.prompt")
     llm = create_llm_client(settings)
     schema = contract.model_output.model_json_schema()
     logger = logging.getLogger(f"travel_planner.{service}")
-    retriever = create_retriever(settings, llm, logger)
-    app = create_app(service, settings)
+    retriever = create_retriever(settings, llm, logger, metrics)
+    app = create_app(service, settings, metrics=metrics)
     app.state.retriever = retriever
+
+    async def ask_model(messages):
+        """Ask the model for suggestions, recording the call's duration, outcome, and tokens."""
+        start, outcome, result = time.perf_counter(), "error", None
+        try:
+            result = await llm.chat(messages, schema)
+            suggestions = contract.model_output.model_validate(result.content)
+            outcome = "success"
+            return suggestions
+        except LLMTimeout:
+            outcome = "timeout"
+            raise
+        except ValidationError:
+            outcome = "invalid"
+            raise
+        finally:
+            tokens = (result.prompt_tokens, result.completion_tokens) if result else (0, 0)
+            metrics.record_model_call(settings.llm_provider, outcome, time.perf_counter() - start, *tokens)
 
     @app.post("/run", response_model=contract.response)
     async def run(request: TravelRequest):
         guidance, used = render_guidance(await retriever.guidance(service, request.destination))
         try:
-            result = await llm.chat(build_messages(prompt, request, guidance), schema)
-            suggestions = contract.model_output.model_validate(result.content)
+            suggestions = await ask_model(build_messages(prompt, request, guidance))
             offers = getattr(suggestions, contract.part)[:MAX_OFFERS]
             # Validated again as the full response, which needs at least one offer (TP-SRS-070, TP-SRS-072).
             # Sources come only from the index, never from the model (TP-SRS-090).

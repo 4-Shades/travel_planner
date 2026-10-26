@@ -20,6 +20,9 @@ node_modules/
 .next/
 web/test-results/
 web/playwright-report/
+web/.features-gen/
+web/next-env.d.ts
+web/tsconfig.tsbuildinfo
 
 # Misc
 docs/IMPLEMENTATION_GUIDE.md
