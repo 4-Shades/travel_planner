@@ -72,10 +72,12 @@ describe("PlanResults", () => {
         })}
       />,
     );
-    const details = screen.getByText("Sources").closest("details")!;
+    const summary = screen.getByText("Sources (2)");
+    const details = summary.closest("details")!;
     expect(details).not.toHaveAttribute("open");
-    await user.click(screen.getByText("Sources"));
+    await user.click(summary);
     expect(details).toHaveAttribute("open");
+    expect(within(details).getByText("Suggestions drew on these travel-guide excerpts.")).toBeVisible();
     const link = within(details).getByRole("link", { name: "Kyoto" });
     expect(link).toHaveAttribute("href", "https://en.wikivoyage.org/wiki/Kyoto");
     expect(link.closest("li")).toHaveTextContent("CC BY-SA 4.0");
@@ -84,7 +86,16 @@ describe("PlanResults", () => {
   // WEB-T04 (TP-SRS-032)
   it("hides sources when there are none", () => {
     render(<PlanResults plan={plan({ sources: [] })} />);
-    expect(screen.queryByText("Sources")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Sources/)).not.toBeInTheDocument();
+  });
+
+  // WEB-T06 (TP-SRS-034)
+  it("suggests changing the trip when nothing was returned", () => {
+    const hint = "No trip options were returned. Try adjusting the travel dates or budget.";
+    const { rerender } = render(<PlanResults plan={plan({ flights: [], stay: [], activities: [], sources: [] })} />);
+    expect(screen.getByText(hint)).toBeVisible();
+    rerender(<PlanResults plan={plan({ flights: [], stay: [] })} />);
+    expect(screen.queryByText(hint)).not.toBeInTheDocument();
   });
 
   // WEB-T05 (TP-SRS-033)

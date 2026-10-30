@@ -25,6 +25,16 @@ describe("PlanProgress", () => {
     expect(status()).toHaveAttribute("data-state", "running");
   });
 
+  // WEB-P05 (TP-SRS-023)
+  it("explains how long planning can take, while it runs", () => {
+    const note =
+      "The flight, stay, and activities agents are working in parallel. With a local model this usually takes one to two minutes.";
+    const { rerender } = render(<PlanProgress state="running" startedAt={Date.now()} />);
+    expect(screen.getByText(note)).toBeVisible();
+    rerender(<PlanProgress state="complete" startedAt={Date.now()} finishedAt={Date.now()} />);
+    expect(screen.queryByText(note)).not.toBeInTheDocument();
+  });
+
   // WEB-P02 (TP-SRS-021)
   it("marks complete when no part failed", () => {
     const startedAt = Date.now();

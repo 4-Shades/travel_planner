@@ -54,8 +54,10 @@ export default function TripForm({ onSubmit, busy }: Props) {
     const problem = shown[name];
     const problemId = `${name}-problem`;
     return (
-      <div className="field">
-        <label htmlFor={name}>{label}</label>
+      <div>
+        <label htmlFor={name} className="mb-1 block font-semibold">
+          {label}
+        </label>
         <input
           id={name}
           name={name}
@@ -63,10 +65,11 @@ export default function TripForm({ onSubmit, busy }: Props) {
           onChange={(event) => update(name, event.target.value)}
           aria-invalid={problem ? "true" : "false"}
           aria-describedby={problem ? problemId : undefined}
+          className="w-full min-w-0 rounded-md border border-border bg-background p-2 text-fg aria-[invalid=true]:border-danger"
           {...input}
         />
         {problem && name !== "origin" && name !== "destination" && name !== "endDate" ? (
-          <p id={problemId} className="field-problem">
+          <p id={problemId} className="mt-1 text-sm text-danger">
             {problem}
           </p>
         ) : null}
@@ -77,25 +80,30 @@ export default function TripForm({ onSubmit, busy }: Props) {
   const summary = attempted ? Object.values(problems) : [];
 
   return (
-    <form className="trip-form" onSubmit={handleSubmit} noValidate aria-label="Trip">
-      <div className="fields">
-        {field("origin", "Origin", { type: "text", autoComplete: "off", maxLength: 120 })}
-        {field("destination", "Destination", { type: "text", autoComplete: "off", maxLength: 120 })}
+    <form className="rounded-lg border border-border bg-surface p-4" onSubmit={handleSubmit} noValidate aria-label="Trip">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-x-4 gap-y-3">
+        {/* Example places, as the Streamlit interface showed (TP-SRS-016). */}
+        {field("origin", "Origin", { type: "text", autoComplete: "off", maxLength: 120, placeholder: "e.g., New York" })}
+        {field("destination", "Destination", { type: "text", autoComplete: "off", maxLength: 120, placeholder: "e.g., Paris" })}
         {field("startDate", "Start date", { type: "date" })}
         {field("endDate", "End date", { type: "date" })}
         {field("budget", "Budget (USD)", { type: "number", min: MIN_BUDGET, step: BUDGET_STEP, inputMode: "numeric" })}
         {field("travellers", "Travellers", { type: "number", min: 1, max: MAX_TRAVELLERS, step: 1, inputMode: "numeric" })}
       </div>
       {summary.length > 0 ? (
-        <div role="alert" className="form-problems">
-          <ul>
+        <div role="alert" className="mt-4 text-danger">
+          <ul className="list-disc pl-5">
             {summary.map((problem) => (
               <li key={problem}>{problem}</li>
             ))}
           </ul>
         </div>
       ) : null}
-      <button type="submit" disabled={busy}>
+      <button
+        type="submit"
+        disabled={busy}
+        className="mt-4 cursor-pointer rounded-md bg-accent px-5 py-2.5 font-semibold text-accent-fg disabled:cursor-progress disabled:opacity-55"
+      >
         Plan my trip
       </button>
     </form>

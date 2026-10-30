@@ -51,7 +51,7 @@ test.describe("end to end", () => {
     await expect(app.submitButton()).toBeFocused();
     await page.keyboard.press("Enter");
     await app.waitForPlan();
-    await page.getByText("Sources", { exact: true }).click();
+    await app.section("Sources").click();
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   });
 
@@ -62,6 +62,22 @@ test.describe("end to end", () => {
     await app.fillValidTrip();
     await app.submitButton().click();
     await expect(page.getByText(UNAVAILABLE_MESSAGE)).toBeVisible();
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  });
+
+  // E2E-07 (TP-SRS-130): the dark palette is accessible too, with results, warnings, and sources shown.
+  test("accessible in dark mode", async ({ app, host, page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await host.answerWithPlan({
+      flights: [],
+      errors: [{ part: "flights", message: "Service is temporarily unavailable." }],
+    });
+    await app.open();
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    await app.fillValidTrip();
+    await app.submitButton().click();
+    await app.waitForPlan();
+    await app.section("Sources").click();
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   });
 
@@ -78,7 +94,7 @@ test.describe("end to end", () => {
       await app.fillValidTrip();
       await app.submitButton().click();
       await app.waitForPlan();
-      await page.getByText("Sources", { exact: true }).click();
+      await app.section("Sources").click();
       expect(await app.horizontalOverflow()).toBe(0);
     });
   }
@@ -110,7 +126,7 @@ test.describe("end to end", () => {
     await expect(app.progress()).toHaveAttribute("data-state", "partial");
     await expect(page.locator("main").getByRole("alert")).toHaveText("Flights: Service is temporarily unavailable.");
     await expect(page.getByRole("table", { name: "Accommodation" })).toBeVisible();
-    await page.getByText("Sources", { exact: true }).click();
+    await app.section("Sources").click();
     await expect(page.getByRole("link", { name: "Tokyo" })).toHaveAttribute("href", "https://en.wikivoyage.org/wiki/Tokyo");
   });
 });

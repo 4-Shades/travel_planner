@@ -79,8 +79,8 @@ When("I fill in and submit the form using only the keyboard", async ({ app, page
   await app.waitForPlan();
 });
 
-When("I expand the {string} section", async ({ page }, name: string) => {
-  await page.getByText(name, { exact: true }).click();
+When("I expand the {string} section", async ({ app }, name: string) => {
+  await app.section(name).click();
 });
 
 Then("I see a form with these labelled fields:", async ({ page }, table) => {
@@ -161,15 +161,37 @@ Then("I see a warning naming {string} with {string}", async ({ page }, part: str
   await expect(page.locator("main").getByRole("alert").filter({ hasText: `${PART_LABELS[part as Part]}: ${message}` })).toBeVisible();
 });
 
-Then("I see a collapsed {string} section", async ({ page }, name: string) => {
-  const details = page.locator("details", { has: page.getByText(name, { exact: true }) });
+Then("I see a collapsed {string} section", async ({ app, page }, name: string) => {
+  const details = page.locator("details", { has: app.section(name) });
   await expect(details).toBeVisible();
   await expect(details).not.toHaveAttribute("open");
 });
 
-Then("I do not see a {string} section", async ({ page }, name: string) => {
+Then("I do not see a {string} section", async ({ app, page }, name: string) => {
   await expect(page.getByRole("table", { name: "Flights" })).toBeVisible();
-  await expect(page.getByText(name, { exact: true })).toHaveCount(0);
+  await expect(app.section(name)).toHaveCount(0);
+});
+
+Then("the {string} section is headed with {int} sources", async ({ app }, name: string, count: number) => {
+  await expect(app.section(name)).toHaveText(`${name} (${count})`);
+});
+
+Then("I see the caption {string}", async ({ page }, caption: string) => {
+  await expect(page.getByText(caption, { exact: true })).toBeVisible();
+});
+
+Then("the {string} field shows the placeholder {string}", async ({ page }, label: string, placeholder: string) => {
+  await expect(page.getByLabel(label)).toHaveAttribute("placeholder", placeholder);
+});
+
+Then("I see a note that the agents work in parallel and can take one to two minutes", async ({ page }) => {
+  await expect(page.getByRole("region", { name: "Results" })).toContainText(
+    "The flight, stay, and activities agents are working in parallel. With a local model this usually takes one to two minutes.",
+  );
+});
+
+Then("I see a hint to adjust the travel dates or budget", async ({ page }) => {
+  await expect(page.getByText("No trip options were returned. Try adjusting the travel dates or budget.")).toBeVisible();
 });
 
 Then(

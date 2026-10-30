@@ -42,6 +42,13 @@ describe("TripForm", () => {
     }
   });
 
+  // WEB-F08 (TP-SRS-016)
+  it("shows example placeholders", () => {
+    setup();
+    expect(screen.getByLabelText("Origin")).toHaveAttribute("placeholder", "e.g., New York");
+    expect(screen.getByLabelText("Destination")).toHaveAttribute("placeholder", "e.g., Paris");
+  });
+
   // WEB-F02 (TP-SRS-011)
   it("defaults travellers to 1", () => {
     setup();

@@ -1,13 +1,16 @@
+@import "tailwindcss";
+
+/* The palette. Dark mode follows the system setting. */
 :root {
-  --text: #1c2430;
+  --fg: #1c2430;
   --muted: #5a6575;
   --background: #f6f7f9;
   --surface: #ffffff;
   --border: #d6dbe2;
   --accent: #1f5fbf;
-  --accent-text: #ffffff;
-  --warning-background: #fff4e5;
-  --warning-border: #e3a008;
+  --accent-fg: #ffffff;
+  --warning-surface: #fff4e5;
+  --warning: #e3a008;
   --danger: #b42318;
   --success: #1e7b34;
   --focus: #1f5fbf;
@@ -15,273 +18,49 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #e6e9ee;
+    --fg: #e6e9ee;
     --muted: #a5adb9;
     --background: #12161c;
     --surface: #1b2129;
     --border: #343d49;
     --accent: #6ea2f2;
-    --accent-text: #0d1117;
-    --warning-background: #3a2d12;
-    --warning-border: #d69e2e;
+    --accent-fg: #0d1117;
+    --warning-surface: #3a2d12;
+    --warning: #d69e2e;
     --danger: #f97066;
     --success: #6fcf86;
     --focus: #6ea2f2;
   }
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+/* Tailwind colors that follow the palette, so utilities like bg-surface switch with dark mode. */
+@theme inline {
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-warning-surface: var(--warning-surface);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-focus: var(--focus);
 }
 
-body {
-  margin: 0;
-  background: var(--background);
-  color: var(--text);
-  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-}
-
-.planner {
-  max-width: 64rem;
-  margin: 0 auto;
-  padding: 1.5rem 1rem 3rem;
-}
-
-h1 {
-  margin: 0 0 0.25rem;
-  font-size: 1.75rem;
-}
-
-.notice {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.trip-form {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1rem;
-}
-
-.fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: 0.75rem 1rem;
-}
-
-.field label {
-  display: block;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-}
-
-.field input {
-  width: 100%;
-  min-width: 0;
-  padding: 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--background);
-  color: var(--text);
-  font: inherit;
-}
-
-.field input[aria-invalid="true"] {
-  border-color: var(--danger);
-}
-
-.field-problem {
-  margin: 0.25rem 0 0;
-  color: var(--danger);
-  font-size: 0.875rem;
-}
-
-.form-problems {
-  margin-top: 1rem;
-  color: var(--danger);
-}
-
-.form-problems ul {
-  margin: 0;
-  padding-left: 1.25rem;
-}
-
-button {
-  margin-top: 1rem;
-  padding: 0.6rem 1.25rem;
-  border: 0;
-  border-radius: 6px;
-  background: var(--accent);
-  color: var(--accent-text);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-button:disabled {
-  opacity: 0.55;
-  cursor: progress;
-}
-
-:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
-}
-
-.results-area {
-  margin-top: 1.5rem;
-}
-
-.progress {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  border-radius: 6px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  font-weight: 600;
-}
-
-.progress-complete {
-  color: var(--success);
-}
-
-.progress-partial {
-  color: var(--warning-border);
-}
-
-.progress-failed {
-  color: var(--danger);
-}
-
-.spinner {
-  width: 1rem;
-  height: 1rem;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.9s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .spinner {
-    animation: none;
-  }
-}
-
-.warning {
-  margin: 0.75rem 0 0;
-  padding: 0.6rem 0.9rem;
-  border-left: 4px solid var(--warning-border);
-  background: var(--warning-background);
-  border-radius: 4px;
-}
-
-table {
-  width: 100%;
-  margin-top: 1.25rem;
-  border-collapse: collapse;
-  background: var(--surface);
-  border: 1px solid var(--border);
-}
-
-caption {
-  text-align: left;
-  font-weight: 700;
-  font-size: 1.15rem;
-  padding: 0 0 0.5rem;
-}
-
-th,
-td {
-  padding: 0.5rem 0.75rem;
-  text-align: left;
-  vertical-align: top;
-  border-top: 1px solid var(--border);
-  overflow-wrap: anywhere;
-}
-
-th {
-  background: var(--background);
-}
-
-.empty {
-  margin-top: 1.25rem;
-  color: var(--muted);
-}
-
-.sources {
-  margin-top: 1.5rem;
-}
-
-.sources summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.license {
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-a {
-  color: var(--accent);
-}
-
-/* Narrow screens: each table row becomes a card, so nothing scrolls sideways (TP-SRS-131). */
-@media (max-width: 40rem) {
-  table,
-  tbody,
-  tr,
-  td {
-    display: block;
-    width: 100%;
+@layer base {
+  body {
+    @apply bg-background text-fg;
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
 
-  thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
+  /* Visible keyboard focus on every control, link, and summary (TP-SRS-130). */
+  :focus-visible {
+    @apply outline-3 outline-offset-2 outline-focus;
   }
 
-  table {
-    border: 0;
-    background: none;
-  }
-
-  caption {
-    display: block;
-  }
-
-  tr {
-    margin-bottom: 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--surface);
-  }
-
-  td {
-    border: 0;
-    padding: 0.35rem 0.75rem;
-  }
-
-  td::before {
-    content: attr(data-label);
-    display: block;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--muted);
+  a {
+    @apply text-accent underline;
   }
 }

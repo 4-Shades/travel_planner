@@ -52,18 +52,18 @@ export default function TripPlanner() {
   }
 
   return (
-    <main className="planner">
-      <header>
-        <h1>Travel planner</h1>
+    <main className="mx-auto max-w-5xl px-4 pt-6 pb-12">
+      <header className="mb-4 space-y-3">
+        <h1 className="mb-1 text-[1.75rem] font-bold">Travel planner</h1>
         <p>Suggestions for flights, places to stay, and things to do on your trip.</p>
-        <p className="notice">{ILLUSTRATIVE_NOTICE}</p>
+        <p className="text-sm text-muted">{ILLUSTRATIVE_NOTICE}</p>
       </header>
 
       <TripForm onSubmit={submitTrip} busy={progress?.state === "running"} />
 
       {progress ? (
         // Results appear in place, without reloading the page (TP-SRS-133).
-        <section aria-label="Results" className="results-area">
+        <section aria-label="Results" className="mt-6">
           <PlanProgress {...progress} />
           {plan ? <PlanResults plan={plan} /> : null}
         </section>

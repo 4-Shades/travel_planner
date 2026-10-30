@@ -108,6 +108,11 @@ export class App {
     return this.page.getByRole("status");
   }
 
+  /** A collapsible section's summary, such as "Sources (2)", found by its first word. */
+  section(name: string) {
+    return this.page.locator("summary").filter({ hasText: new RegExp(`^${name}\\b`) });
+  }
+
   async waitForPlan() {
     await this.page.locator('[role="status"]:not([data-state="running"])').waitFor();
   }
